@@ -1,1 +1,1 @@
-# robotic-project
+# robotics-project
