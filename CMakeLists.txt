@@ -119,7 +119,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/Eigen
 )
 
 ## Declare a C++ library
@@ -210,7 +210,6 @@ include_directories(
 add_executable(movement_handler src/movement_handler.cpp)
 target_link_libraries(movement_handler 
   ${catkin_LIBRARIES} 
-  ${Eigen_LIBRARIES}
 )
 add_dependencies(movement_handler 
   robotics_project_gencpp
@@ -219,7 +218,6 @@ add_dependencies(movement_handler
 add_executable(main src/main.cpp)
 target_link_libraries(main 
   ${catkin_LIBRARIES}
-  ${Eigen_LIBRARIES}
 )
 add_dependencies(main 
   robotics_project_gencpp
