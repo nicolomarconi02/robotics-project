@@ -2,6 +2,8 @@
 #include "robotics_project/robotics_project.h"
 #include "robotics_project/MovementHandler.h"
 #include "robotics_project/movement_handler.h"
+#include <eigen3/Eigen/Dense>
+
 
 Path get_path();
 
