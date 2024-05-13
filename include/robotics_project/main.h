@@ -1,8 +1,7 @@
-#include <eigen3/Eigen/Dense>
-#include "ros/ros.h"
+#ifndef MAIN_H
+#define MAIN_H
 
 #include "robotics_project/robotics_project.h"
-#include "robotics_project/MovementHandler.h"
 
 /* Number of blocks to be moved */
 #define N_BLOCKS 1
@@ -14,3 +13,5 @@ void move_row(ros::Publisher &pub, PathRow vals);
 
 /* Interactions with movement module */
 Path get_movements(robotics_project::MovementHandler::Response &res);
+
+#endif

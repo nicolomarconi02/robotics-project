@@ -1,5 +1,7 @@
+#ifndef MOVEMENT_HANDLER_H
+#define MOVEMENT_HANDLER_H
+
 #include "robotics_project/robotics_project.h"
-#include "robotics_project/MovementHandler.h"
 
 /* Number of moves inside a path */
 #define N_MOVEMENTS 5
@@ -10,3 +12,5 @@ bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_proje
 
 /* Interactions with main */
 robotics_project::MovementHandler::Response get_response(Path movements);
+
+#endif

@@ -1,17 +1,5 @@
 /* Header */
 #include "robotics_project/main.h"
-#include "robotics_project/robotics_project.h"
-#include "robotics_project/MovementHandler.h"
-
-/* C++ standards */
-#include <cstdlib>
-
-/* Eigen */
-#include <eigen3/Eigen/Dense>
-
-/* ROS */
-#include "ros/ros.h"
-#include "std_msgs/Float64MultiArray.h"
 
 
 int main(int argc, char **argv) {
@@ -63,7 +51,7 @@ void move_row(ros::Publisher &pub, PathRow vals) {
 
     /* Standard message that the robot receives */
     std_msgs::Float64MultiArray joint_statement;
-    joint_statement.data.assign(vals.begin(), vals.end());
+    // joint_statement.data.assign(vals.begin(), vals.end());
 
     /* publish the command to the channel, the robot will intercept it */
     pub.publish(joint_statement);

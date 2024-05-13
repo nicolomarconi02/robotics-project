@@ -1,9 +1,5 @@
-#include "ros/ros.h"
-#include "robotics_project/robotics_project.h"
-#include "robotics_project/MovementHandler.h"
+/* Header */
 #include "robotics_project/movement_handler.h"
-#include <eigen3/Eigen/Dense>
-
 
 Path get_path();
 
@@ -56,7 +52,8 @@ robotics_project::MovementHandler::Response get_response(Path movements) {
     // Assigning, in a safe manner, each row of the Path to the response's counterpart
     for (int i=0; i<movements.rows(); i++)
         // For clarification: res.path.movements[i] = movements.row(i)
-        res.path.movements[i].data.assign(movements.row(i).begin(), movements.row(i).end());
+        // res.path.movements[i].data.assign(movements.row(i).reshaped<Eigen::RowMajor>().transpose().begin(), movements.row(i).reshaped<Eigen::RowMajor>().transpose().end());
+        std::cout <<  typeid(movements.row(i)).name() << std::endl;
 
     return res;
 }
