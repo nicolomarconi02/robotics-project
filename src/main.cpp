@@ -51,7 +51,7 @@ void move_row(ros::Publisher &pub, PathRow vals) {
 
     /* Standard message that the robot receives */
     std_msgs::Float64MultiArray joint_statement;
-    // joint_statement.data.assign(vals.begin(), vals.end());
+    joint_statement.data.assign(vals.begin(), vals.end());
 
     /* publish the command to the channel, the robot will intercept it */
     pub.publish(joint_statement);
