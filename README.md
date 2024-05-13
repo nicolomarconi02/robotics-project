@@ -12,9 +12,14 @@ This node interacts with the **UR5** and the other modules, as of now only repre
 This node provides a service that computes the movements that the **UR5** should do.
 
 ## Building
-You can directly build the project.
+Before starting to build you should source the current project
+```
+source ~/ros_ws/devel/setup.bash
+```
 
-If you want to build only this pacakge you can execute the file `build_package.sh`, this one executes the following command
+You can either build the whole project (that includes `locosim`) or just the package.
+
+If you want to build only this pacakge you can execute the file `build_package.sh`, this one runs the following command
 
 ```
 catkin_make --pkg robotics_project
