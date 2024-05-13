@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 /* Eigen */
-#include "Eigen/Dense"
+#include <eigen3/Eigen/Dense>
 
 /* ROS */
 #include "ros/ros.h"

@@ -1,4 +1,4 @@
-#include "Eigen/Dense"
+#include <eigen3/Eigen/Dense>
 #include "ros/ros.h"
 
 /* Typedefs in order to be more clear */
