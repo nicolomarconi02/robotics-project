@@ -219,6 +219,7 @@ add_dependencies(movement_handler
 add_executable(main src/main.cpp)
 target_link_libraries(main 
   ${catkin_LIBRARIES}
+  ${Eigen_LIBRARIES}
 )
 add_dependencies(main 
   robotics_project_gencpp
