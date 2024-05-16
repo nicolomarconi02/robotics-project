@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(robotics_project)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++17 -g)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -206,9 +206,11 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+add_library(movement_functions src/robotics_project.cpp)
 
 add_executable(movement_handler src/movement_handler.cpp)
 target_link_libraries(movement_handler 
+  movement_functions
   ${catkin_LIBRARIES} 
 )
 add_dependencies(movement_handler 

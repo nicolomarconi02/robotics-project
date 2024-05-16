@@ -2,6 +2,7 @@
 #define MOVEMENT_HANDLER_H
 
 #include "robotics_project/robotics_project.h"
+#include "robotics_project/MovementHandler.h"
 
 /* Number of moves inside a path */
 #define N_MOVEMENTS 5

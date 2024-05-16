@@ -2,6 +2,9 @@
 #define MAIN_H
 
 #include "robotics_project/robotics_project.h"
+#include "robotics_project/MovementHandler.h"
+
+#include "ros/ros.h"
 
 /* Number of blocks to be moved */
 #define N_BLOCKS 1
