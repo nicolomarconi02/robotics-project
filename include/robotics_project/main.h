@@ -1,9 +1,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#include "robotics_project/robotics_project.h"
 #include "robotics_project/MovementHandler.h"
-
+#include "robotics_project/robotics_project.h"
 #include "ros/ros.h"
 
 /* Number of blocks to be moved */
