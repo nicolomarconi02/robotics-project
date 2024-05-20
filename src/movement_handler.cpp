@@ -56,7 +56,7 @@ Path get_path() {
       }
       std::cout << std::endl;
    }
-   std::cout << "Re" << std::endl;
+   std::cout << "\nRe" << std::endl;
    for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
          std::cout << Re.row(i).col(j) << " ";
@@ -67,14 +67,19 @@ Path get_path() {
    for (auto val : pe) {
       std::cout << val << " ";
    }
-   std::cout.flush();
-   Path p;
-   // p.conservativeResize(N_MOVEMENTS, p.cols());
 
-   // for (int i = 4; i < N_MOVEMENTS; i++) {
-   //     double dummy = (i+1) * 10;
-   //     for (int j=0; j<8; j++) p.row(i).col(j) << dummy;
-   // }
+   std::cout << "\n\njacobian" << std::endl;
+   auto jacobian = getJacobian(joint);
+   std::cout << jacobian << std::endl;
+   std::cout.flush();
+
+   Path p;
+   p.conservativeResize(N_MOVEMENTS, p.cols());
+
+   for (int i = 4; i < N_MOVEMENTS; i++) {
+      double dummy = (i + 1) * 5;
+      for (int j = 0; j < 8; j++) p.row(i).col(j) << dummy;
+   }
 
    return p;
 }

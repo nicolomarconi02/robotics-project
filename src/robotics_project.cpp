@@ -11,7 +11,77 @@ Eigen::Matrix4d generalTransformationMatrix(double theta, double alpha, double d
                           {0, 0, 0, 1}};
 }
 
-std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(Eigen::Matrix<double, 6, 1> joints) {
+Eigen::Matrix<double, 6, 6> getJacobian(const Eigen::Matrix<double, 6, 1>& joints) {
+   Eigen::Matrix<double, 6, 6> jacobian;
+   jacobian.setZero();
+   jacobian.col(0) << d_DH(4) * (cos(joints(0)) * cos(joints(4)) +
+                                 cos(joints(1) + joints(2) + joints(3)) * sin(joints(0)) * sin(joints(4))) +
+                          d_DH(3) * cos(joints(0)) - a_DH(1) * cos(joints(1)) * sin(joints(0)) -
+                          d_DH(4) * sin(joints(1) + joints(2) + joints(3)) * sin(joints(0)) -
+                          a_DH(2) * cos(joints(1)) * cos(joints(2)) * sin(joints(0)) +
+                          a_DH(2) * sin(joints(0)) * sin(joints(1)) * sin(joints(2)),
+       d_DH(4) * (cos(joints(4)) * sin(joints(0)) -
+                  cos(joints(1) + joints(2) + joints(3)) * cos(joints(0)) * sin(joints(4))) +
+           d_DH(3) * sin(joints(0)) + a_DH(1) * cos(joints(0)) * cos(joints(1)) +
+           d_DH(4) * sin(joints(1) + joints(2) + joints(3)) * cos(joints(0)) +
+           a_DH(2) * cos(joints(0)) * cos(joints(1)) * cos(joints(2)) -
+           a_DH(2) * cos(joints(0)) * sin(joints(1)) * sin(joints(2)),
+       0, 0, 0, 1;
+   jacobian.col(1) << -cos(joints(0)) * (a_DH(2) * sin(joints(1) + joints(2)) + a_DH(1) * sin(joints(1)) +
+                                         d_DH(4) * (sin(joints(1) + joints(2)) * sin(joints(3)) -
+                                                    cos(joints(1) + joints(2)) * cos(joints(3))) -
+                                         d_DH(4) * sin(joints(4)) *
+                                             (cos(joints(1) + joints(2)) * sin(joints(3)) +
+                                              sin(joints(1) + joints(2)) * cos(joints(3)))),
+       -sin(joints(0)) *
+           (a_DH(2) * sin(joints(1) + joints(2)) + a_DH(1) * sin(joints(1)) +
+            d_DH(4) * (sin(joints(1) + joints(2)) * sin(joints(3)) - cos(joints(1) + joints(2)) * cos(joints(3))) -
+            d_DH(4) * sin(joints(4)) *
+                (cos(joints(1) + joints(2)) * sin(joints(3)) + sin(joints(1) + joints(2)) * cos(joints(3)))),
+       a_DH(2) * cos(joints(1) + joints(2)) - (d_DH(4) * sin(joints(1) + joints(2) + joints(3) + joints(4))) / 2 +
+           a_DH(1) * cos(joints(1)) + (d_DH(4) * sin(joints(1) + joints(2) + joints(3) - joints(4))) / 2 +
+           d_DH(4) * sin(joints(1) + joints(2) + joints(3)),
+       sin(joints(0)), -cos(joints(0)), 0;
+   jacobian.col(2) << cos(joints(0)) *
+                          (d_DH(4) * cos(joints(1) + joints(2) + joints(3)) - a_DH(2) * sin(joints(1) + joints(2)) +
+                           d_DH(4) * sin(joints(1) + joints(2) + joints(3)) * sin(joints(4))),
+       sin(joints(0)) * (d_DH(4) * cos(joints(1) + joints(2) + joints(3)) - a_DH(2) * sin(joints(1) + joints(2)) +
+                         d_DH(4) * sin(joints(1) + joints(2) + joints(3)) * sin(joints(4))),
+       a_DH(2) * cos(joints(1) + joints(2)) - (d_DH(4) * sin(joints(1) + joints(2) + joints(3) + joints(4))) / 2 +
+           (d_DH(4) * sin(joints(1) + joints(2) + joints(3) - joints(4))) / 2 +
+           d_DH(4) * sin(joints(1) + joints(2) + joints(3)),
+       sin(joints(0)), -cos(joints(0)), 0;
+   jacobian.col(3) << d_DH(4) * cos(joints(0)) *
+                          (cos(joints(1) + joints(2) + joints(3)) +
+                           sin(joints(1) + joints(2) + joints(3)) * sin(joints(4))),
+       d_DH(4) * sin(joints(0)) *
+           (cos(joints(1) + joints(2) + joints(3)) + sin(joints(1) + joints(2) + joints(3)) * sin(joints(4))),
+       d_DH(4) * (sin(joints(1) + joints(2) + joints(3) - joints(4)) / 2 + sin(joints(1) + joints(2) + joints(3)) -
+                  sin(joints(1) + joints(2) + joints(3) + joints(4)) / 2),
+       sin(joints(0)), -cos(joints(0)), 0;
+   jacobian.col(4) << d_DH(4) * cos(joints(0)) * cos(joints(1)) * cos(joints(4)) * sin(joints(2)) * sin(joints(3)) -
+                          d_DH(4) * cos(joints(0)) * cos(joints(1)) * cos(joints(2)) * cos(joints(3)) * cos(joints(4)) -
+                          d_DH(4) * sin(joints(0)) * sin(joints(4)) +
+                          d_DH(4) * cos(joints(0)) * cos(joints(2)) * cos(joints(4)) * sin(joints(1)) * sin(joints(3)) +
+                          d_DH(4) * cos(joints(0)) * cos(joints(3)) * cos(joints(4)) * sin(joints(1)) * sin(joints(2)),
+       d_DH(4) * cos(joints(0)) * sin(joints(4)) +
+           d_DH(4) * cos(joints(1)) * cos(joints(4)) * sin(joints(0)) * sin(joints(2)) * sin(joints(3)) +
+           d_DH(4) * cos(joints(2)) * cos(joints(4)) * sin(joints(0)) * sin(joints(1)) * sin(joints(3)) +
+           d_DH(4) * cos(joints(3)) * cos(joints(4)) * sin(joints(0)) * sin(joints(1)) * sin(joints(2)) -
+           d_DH(4) * cos(joints(1)) * cos(joints(2)) * cos(joints(3)) * cos(joints(4)) * sin(joints(0)),
+       -d_DH(4) * (sin(joints(1) + joints(2) + joints(3) - joints(4)) / 2 +
+                   sin(joints(1) + joints(2) + joints(3) + joints(4)) / 2),
+       sin(joints(1) + joints(2) + joints(3)) * cos(joints(0)), sin(joints(1) + joints(2) + joints(3)) * sin(joints(0)),
+       -cos(joints(1) + joints(2) + joints(3));
+   jacobian.col(5) << 0, 0, 0,
+       cos(joints(4)) * sin(joints(0)) - cos(joints(1) + joints(2) + joints(3)) * cos(joints(0)) * sin(joints(4)),
+       -cos(joints(0)) * cos(joints(4)) - cos(joints(1) + joints(2) + joints(3)) * sin(joints(0)) * sin(joints(4)),
+       -sin(joints(1) + joints(2) + joints(3)) * sin(joints(4));
+   return jacobian;
+}
+
+std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(
+    const Eigen::Matrix<double, 6, 1>& joints) {
    Eigen::Matrix4d transformation_matrix = generalTransformationMatrix(joints(0), alpha_DH(0), d_DH(0), a_DH(0));
    for (int i = 1; i < 6; i++) {
       transformation_matrix *= generalTransformationMatrix(joints(i), alpha_DH(i), d_DH(i), a_DH(i));
