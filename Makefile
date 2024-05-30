@@ -34,6 +34,9 @@ run_client:
 run_robot:
 	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && python3 -i ${LOCOSIM_PATH}/robot_control/base_controllers/ur5_generic.py )
 
+see_graph:
+	@rosrun rqt_graph rqt_graph
+
 
 .PHONY:
 	build_package
