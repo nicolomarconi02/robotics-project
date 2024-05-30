@@ -28,6 +28,9 @@ import_services:
 run_movement_handler:
 	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} movement_handler )
 
+run_vision:
+	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} vision.py )
+
 run_client:
 	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} main )
 
