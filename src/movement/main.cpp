@@ -1,5 +1,5 @@
 /* Header */
-#include "robotics_project/movement_handler.h"
+#include "robotics_project/movement/main.h"
 
 #include <iostream>
 
@@ -68,13 +68,14 @@ Path get_path() {
       std::cout << val << " ";
    }
    std::cout.flush();
-   Path p;
-   // p.conservativeResize(N_MOVEMENTS, p.cols());
 
-   // for (int i = 4; i < N_MOVEMENTS; i++) {
-   //     double dummy = (i+1) * 10;
-   //     for (int j=0; j<8; j++) p.row(i).col(j) << dummy;
-   // }
+   Path p;
+   p.conservativeResize(N_MOVEMENTS, p.cols());
+
+   for (int i = 4; i < N_MOVEMENTS;i++) {
+       double dummy = (i+1) * 10;
+       for (int j=0; j<8; j++) p.row(i).col(j) << dummy;
+   }
 
    return p;
 }

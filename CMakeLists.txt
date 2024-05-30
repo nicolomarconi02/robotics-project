@@ -206,9 +206,9 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-add_library(movement_functions src/robotics_project.cpp)
+add_library(movement_functions src/utils.cpp)
 
-add_executable(movement_handler src/movement_handler.cpp)
+add_executable(movement_handler src/movement/main.cpp)
 target_link_libraries(movement_handler 
   movement_functions
   ${catkin_LIBRARIES} 
