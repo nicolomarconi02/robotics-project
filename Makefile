@@ -10,6 +10,9 @@ LOCOSIM_PATH=${WORKSPACE_PATH}/src/locosim
 TOTAL_SRV_MSG_FILES=$(shell echo $$(( "$(shell ls srv | wc -l) * 3 + $(shell ls msg | wc -l)" )))
 GENERATED_ROBOTICS_PROJECT_FILES := $(shell echo $$(( "$(shell ls ${INCLUDE_SERVICE_PATH_DESTINATION} | wc -l)" )))
 
+SERVICES=$(shell ls srv -1 | rev | cut -f 2- -d "." | rev)
+MSGS=$(shell ls msg -1 | rev | cut -f 2- -d "." | rev)
+
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
 	@make manage_services
@@ -22,8 +25,13 @@ manage_services:
 	@if [ $(TOTAL_SRV_MSG_FILES) -ne $(GENERATED_ROBOTICS_PROJECT_FILES) ]; then make import_services; fi;
 
 import_services:
-	@find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "MovementHandler*.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \;
-	@find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "Path.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \;
+	@for file in ${SERVICES}; do \
+		find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "${file}*.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \; \
+		; done
+	
+	@for file in ${MSGS}; do \
+		find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "${file}.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \; \
+		; done
 
 run-movement:
 	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} movement_handler )
