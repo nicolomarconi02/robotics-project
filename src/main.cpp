@@ -11,6 +11,19 @@ int main(int argc, char **argv) {
    std::cout << "MAIN Process: STARTED" << std::endl;
 
    ros::NodeHandle n;
+
+   /* TODO
+         Le seguenti righe di codice portano a errori in fase di compilazione,
+         in quanto la GetBlocks non viene trovata all'interno del namespace "robotics_project".
+         Dunque, risulta necessario effettuare dei test per capire l'origine del problema
+
+   */
+
+   // ros::ServiceClient vision_client = n.serviceClient<robotics_project::GetBlocks>("vision");
+   // robotics_project::GetBlocks vision_srv;
+
+   /* TODO END */
+
    ros::ServiceClient service_client = n.serviceClient<robotics_project::MovementHandler>("movement_handler");
    robotics_project::MovementHandler srv;
 
