@@ -12,40 +12,36 @@ This node interacts with the **UR5** and the other modules, as of now only repre
 This node provides a service that computes the movements that the **UR5** should do.
 
 ## Building
-Before starting to build you should source the current project
+Before starting to build the project, you need to include the Eigen submodule in the git repo
 ```
-source ~/ros_ws/devel/setup.bash
+git submodule update --init --recursive
 ```
-
-You can either build the whole project (that includes `locosim`) or just the package.
-
-If you want to build only this pacakge you can execute the file `build_package.sh`, this one runs the following command
-
+To build the project simply run the Makefile (do not worry about sourcing the project since we already integrated this step inside the Makefile). 
 ```
-catkin_make --pkg robotics_project
+make
 ```
 
 ## Running
-The following steps are sequential.
+The following steps are sequential and need to be executed in different terminals.
 
 ### Run the robot
 In order to run the simulation of the robot, execute
 ```
-python3 -i $LOCOSIM_DIR/robot_control/base_controllers/ur5_generic.py
+make run-robot
 ```
 
-Running the robot closes every instance of **rosmaster** and opens a new one, so it isn't necessary to run the **roscore** in a seperate terminal.
+Running the robot closes every instance of **rosmaster** and opens a new one, so it is not necessary to run the **roscore** in a seperate terminal.
 
 ### Start the Movement Handler server
 Execute
 ```
-rosrun robotics_project movement_handler
+make run-movement
 ```
 This starts a server on the current console, given that the following command has to be executed in a different one.
 
 ### Execute the Main
 Execute
 ```
-rosrun robotics_project main
+make run-client
 ```
-At the moment the **movement handler** provides only dummy data, so the actions of the robot are not planned and are randomic.
+At the moment the **movement handler** (launched with `make run-movement`) provides only dummy data, so the actions of the robot are not planned and are randomic.
