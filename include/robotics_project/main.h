@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include "robotics_project/GetBlocks.h"
 #include "robotics_project/MovementHandler.h"
 #include "robotics_project/utils.h"
 #include "ros/ros.h"

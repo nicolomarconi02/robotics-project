@@ -10,20 +10,14 @@ int main(int argc, char **argv) {
    ros::init(argc, argv, "robotics_project_main");
    std::cout << "MAIN Process: STARTED" << std::endl;
 
+   // ROS handler
    ros::NodeHandle n;
 
-   /* TODO
-         Le seguenti righe di codice portano a errori in fase di compilazione,
-         in quanto la GetBlocks non viene trovata all'interno del namespace "robotics_project".
-         Dunque, risulta necessario effettuare dei test per capire l'origine del problema
+   // Vision Service
+   ros::ServiceClient vision_client = n.serviceClient<robotics_project::GetBlocks>("vision");
+   robotics_project::GetBlocks vision_srv;
 
-   */
-
-   // ros::ServiceClient vision_client = n.serviceClient<robotics_project::GetBlocks>("vision");
-   // robotics_project::GetBlocks vision_srv;
-
-   /* TODO END */
-
+   // Movement Handler Service
    ros::ServiceClient service_client = n.serviceClient<robotics_project::MovementHandler>("movement_handler");
    robotics_project::MovementHandler srv;
 
@@ -38,7 +32,7 @@ int main(int argc, char **argv) {
       if (service_client.call(srv)) {
          movements = get_movements(srv.response);
 
-         std::cout << "MAIN Process: Transmissitting movements | block " << i << std::endl;
+         std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
          move(pub, movements);
       } else {
          std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
