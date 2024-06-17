@@ -41,7 +41,7 @@ source:
 run-movement: source
 	@rosrun ${PROJECT_NAME} movement_handler
 
-run-vision: source
+run-vision: source camera-rolls
 	@rosrun ${PROJECT_NAME} vision.py
 
 run-client: source
@@ -54,6 +54,8 @@ run-robot: source
 graph:
 	@rosrun rqt_graph rqt_graph
 
+camera-rolls:
+	@mkdir camera-rolls
 
 .PHONY:
 	build-pkg

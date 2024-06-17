@@ -1,9 +1,14 @@
 #! /usr/bin/env python
 import rospy as ros
 
+import cv2
+from cv_bridge import CvBridge
+
 from sensor_msgs.msg import Image, PointCloud2
 from sensor_msgs import point_cloud2
 from robotics_project.srv import GetBlocks
+
+from datetime import datetime
 
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
@@ -23,6 +28,7 @@ class VisionManagerClass():
         # Make use of the image obtained
         self.digest_ZED_data(self.image_msg, self.point_cloud2_msg)
 
+        return
         # Service's definition and its handler setting
         s = ros.Service('GetBlocks', GetBlocks, self.handle_get_blocks)
 
@@ -48,6 +54,15 @@ class VisionManagerClass():
             Nothing as now
         """
 
+        # convert received image (bgr8 format) to a cv2 image
+        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
+        imgName = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        print(imgName)
+
+        cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
+
+
+        return
         points_list = []
         #this is the center of the image plane
         center_x = int(pc2.width / 2)
