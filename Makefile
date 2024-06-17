@@ -48,7 +48,8 @@ run-client: source
 	@rosrun ${PROJECT_NAME} main
 
 run-robot: source
-	@python3 -i ${LOCOSIM_PATH}/robot_control/base_controllers/ur5_generic.py
+	@bash src/world/setup.bash
+	@rosrun ${PROJECT_NAME} ur5_generic.py
 
 graph:
 	@rosrun rqt_graph rqt_graph
