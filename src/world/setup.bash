@@ -13,17 +13,22 @@ WORLD_NAME="robotics_project"
 LOCAL_WORLD="$PROJECT/src/world/$WORLD_NAME.world"
 LOCOSIM_WORLD="$LOCOSIM_WORLDS/$WORLD_NAME.world"
 
+# admitted Gazebo colors (in fact defined as materials) that we assign to each block
+colors=('Red' 'Green' 'Blue' 'Yellow' 'Purple' 'Orange' 'Grey' 'White' 'Black' 'DarkYellow' 'RedGlow')
+colors=( $(shuf -e "${colors[@]}") )
 
-# Saving the blocks inside locosim
+i=0
+# Saving the blocks inside locosim, before each save we assign a random color to each one
 for block in $(ls $MODELS_SOURCE)
 do
-    if [ ! -d $MODELS_DESTINATION/$block ]
-        then 
-            cp -r $MODELS_SOURCE/$block $MODELS_DESTINATION/$block
-    fi
+    # substitute the default color (Grey) with a random one
+    sed -i -e "s/Grey/${colors[$i]}/g" $MODELS_SOURCE/$block/model.sdf
+    # insert the block inside the robot's folder
+    cp -r $MODELS_SOURCE/$block $MODELS_DESTINATION
+    # reset the color to the default one
+    sed -i -e "s/${colors[$i]}/Grey/g" $MODELS_SOURCE/$block/model.sdf
+    # iterate $i inside $colors
+    i=$(((i+1)%${#colors[@]}))
 done
 
-if [ ! -f $LOCOSIM_WORLD ]
-    then 
-        cp ${LOCAL_WORLD} ${LOCOSIM_WORLD}
-fi
+cp -r ${LOCAL_WORLD} ${LOCOSIM_WORLD}

@@ -47,12 +47,14 @@ run-vision: source camera-rolls
 run-client: source
 	@rosrun ${PROJECT_NAME} main
 
-run-robot: source
-	@bash src/world/setup.bash
+run-robot: source world-setup
 	@rosrun ${PROJECT_NAME} ur5_generic.py
 
 graph:
 	@rosrun rqt_graph rqt_graph
+
+world-setup:
+	@bash src/world/setup.bash
 
 camera-rolls:
 	@mkdir camera-rolls
@@ -63,6 +65,7 @@ camera-rolls:
 	manage_services
 	import_services
 	source
+	world-setup
 	run-movement
 	run-client
 	run-robot
