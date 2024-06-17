@@ -10,15 +10,20 @@ MODELS_DESTINATION="$LOCOSIM_WORLDS/models"
 
 # world path
 WORLD_NAME="robotics_project"
-LOCAL_WORLD="$PROJECT/src/world/$WORLD_NAME.world"
+LOCAL_WORLD="$PROJECT/src/world/tmp.world"
 LOCOSIM_WORLD="$LOCOSIM_WORLDS/$WORLD_NAME.world"
 
 # admitted Gazebo colors (in fact defined as materials) that we assign to each block
-colors=('Red' 'Green' 'Blue' 'Yellow' 'Purple' 'Orange' 'Grey' 'White' 'Black' 'DarkYellow' 'RedGlow')
+colors=('Red' 'Green' 'Blue' 'Yellow' 'Purple' 'Orange' 'Grey' 'White' 'Indigo' 'RedBright' 'Turquoise')
 colors=( $(shuf -e "${colors[@]}") )
 
+# ------------------- Managing the blocks' instances ------------------- 
+# moving tmp.world inside locosim
+mv ${LOCAL_WORLD} ${LOCOSIM_WORLD}
+
+# -------------------- Managing the blocks' models -------------------- 
 i=0
-# Saving the blocks inside locosim, before each save we assign a random color to each one
+# Saving the models inside locosim, before each save we assign a random color to each one
 for block in $(ls $MODELS_SOURCE)
 do
     # substitute the default color (Grey) with a random one
@@ -30,5 +35,3 @@ do
     # iterate $i inside $colors
     i=$(((i+1)%${#colors[@]}))
 done
-
-cp -r ${LOCAL_WORLD} ${LOCOSIM_WORLD}

@@ -53,8 +53,11 @@ run-robot: source world-setup
 graph:
 	@rosrun rqt_graph rqt_graph
 
-world-setup:
+world-setup: position-blocks
 	@bash src/world/setup.bash
+
+position-blocks:
+	@python3 src/world/position-blocks.py
 
 camera-rolls:
 	@mkdir camera-rolls
@@ -66,6 +69,7 @@ camera-rolls:
 	import_services
 	source
 	world-setup
+	position-blocks
 	run-movement
 	run-client
 	run-robot
