@@ -209,7 +209,7 @@ catkin_install_python(PROGRAMS
 # catkin_add_nosetests(test)
 add_library(movement_functions src/utils.cpp)
 
-add_executable(movement_handler src/movement/main.cpp)
+add_executable(movement_handler src/movement/movement.cpp)
 target_link_libraries(movement_handler 
   movement_functions
   ${catkin_LIBRARIES} 
