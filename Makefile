@@ -35,17 +35,20 @@ import_services:
 		find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "${file}.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \; \
 		; done
 
-run-movement:
-	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} movement_handler )
+source:
+	@source ${WORKSPACE_PATH}/devel/setup.bash
 
-run-vision:
-	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} vision.py )
+run-movement: source
+	@rosrun ${PROJECT_NAME} movement_handler
 
-run-client:
-	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && rosrun ${PROJECT_NAME} main )
+run-vision: source
+	@rosrun ${PROJECT_NAME} vision.py
 
-run-robot:
-	@( cd ${WORKSPACE_PATH} && source devel/setup.bash && python3 -i ${LOCOSIM_PATH}/robot_control/base_controllers/ur5_generic.py )
+run-client: source
+	@rosrun ${PROJECT_NAME} main
+
+run-robot: source
+	@python3 -i ${LOCOSIM_PATH}/robot_control/base_controllers/ur5_generic.py
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -56,6 +59,7 @@ graph:
 	build-proj
 	manage_services
 	import_services
+	source
 	run-movement
 	run-client
 	run-robot
