@@ -13,6 +13,8 @@ GENERATED_ROBOTICS_PROJECT_FILES := $(shell echo $$(( "$(shell ls ${INCLUDE_SERV
 SERVICES=$(shell ls srv -1 | rev | cut -f 2- -d "." | rev)
 MSGS=$(shell ls msg -1 | rev | cut -f 2- -d "." | rev)
 
+SOURCE=source ${WORKSPACE_PATH}/devel/setup.bash
+
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
 	@make manage_services
@@ -35,20 +37,17 @@ import_services:
 		find ${INCLUDE_SERVICE_PATH_ORIGIN} -name "${file}.h" -exec cp '{}' ${INCLUDE_SERVICE_PATH_DESTINATION} \; \
 		; done
 
-source:
-	@source ${WORKSPACE_PATH}/devel/setup.bash
+run-movement:
+	@${SOURCE} && rosrun ${PROJECT_NAME} movement_handler
 
-run-movement: source
-	@rosrun ${PROJECT_NAME} movement_handler
+run-vision: camera-rolls
+	@${SOURCE} && rosrun ${PROJECT_NAME} vision.py
 
-run-vision: source camera-rolls
-	@rosrun ${PROJECT_NAME} vision.py
+run-client:
+	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
-run-client: source
-	@rosrun ${PROJECT_NAME} main
-
-run-robot: source world-setup
-	@rosrun ${PROJECT_NAME} ur5_generic.py
+run-robot: world-setup
+	@${SOURCE} && rosrun ${PROJECT_NAME} ur5_generic.py
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -67,7 +66,6 @@ camera-rolls:
 	build-proj
 	manage_services
 	import_services
-	source
 	world-setup
 	position-blocks
 	run-movement
