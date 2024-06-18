@@ -23,4 +23,6 @@ std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(
     const Eigen::Matrix<double, 6, 1>& joints);
 
 Eigen::Matrix<double, 8, 1> getJointConfiguration();
+
+Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point);
 #endif

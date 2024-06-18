@@ -73,6 +73,11 @@ Path get_path() {
    std::cout << jacobian << std::endl;
    std::cout.flush();
 
+   Eigen::Vector3d world_point(1, 1, 2);
+   Eigen::Vector3d base_point = worldToBaseCoordinates(world_point);
+   std::cout << "world_point: " << world_point << std::endl;
+   std::cout << "base_point: " << base_point << std::endl;
+
    Path p;
    p.conservativeResize(N_MOVEMENTS, p.cols());
 

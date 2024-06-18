@@ -110,3 +110,11 @@ Eigen::Matrix<double, 8, 1> getJointConfiguration() {
                                       joint_configuration->position[6], joint_configuration->position[7],
                                       joint_configuration->position[1], joint_configuration->position[2]};
 }
+
+Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
+   Eigen::Matrix4d transformationMatrix{
+       {-1.0, 0.0, 0.0, 0.5}, {0.0, 1.0, 0.0, 0.35}, {0.0, 0.0, -1.0, 1.75}, {0.0, 0.0, 0.0, 1.0}};
+
+   Eigen::Vector4d tmpPoint = transformationMatrix.inverse() * Eigen::Vector4d{point(0), point(1), point(2), 1.0};
+   return Eigen::Vector3d{tmpPoint(0), tmpPoint(1), tmpPoint(2)};
+}
