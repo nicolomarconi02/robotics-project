@@ -14,7 +14,7 @@ LOCAL_WORLD="$PROJECT/src/world/tmp.world"
 LOCOSIM_WORLD="$LOCOSIM_WORLDS/$WORLD_NAME.world"
 
 # admitted Gazebo colors (in fact defined as materials) that we assign to each block
-colors=('Red' 'Green' 'Blue' 'Yellow' 'Purple' 'Orange' 'Grey' 'White' 'Indigo' 'RedBright' 'Turquoise')
+colors=('Red' 'Green' 'Blue' 'Yellow' 'Purple' 'Orange' 'Indigo' 'Turquoise')
 colors=( $(shuf -e "${colors[@]}") )
 
 # ------------------- Managing the blocks' instances ------------------- 
