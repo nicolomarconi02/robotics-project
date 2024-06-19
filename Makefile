@@ -60,6 +60,7 @@ position-blocks:
 
 camera-rolls:
 	@mkdir camera-rolls
+	@mkdir predictions
 
 .PHONY:
 	build-pkg

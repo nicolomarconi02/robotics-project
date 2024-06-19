@@ -1,3 +1,6 @@
 [submodule "dependencies/Eigen"]
 	path = dependencies/Eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "dependencies/open3d_ros_pointcloud_conversion"]
+	path = dependencies/open3d_ros_pointcloud_conversion
+	url = https://github.com/felixchenfy/open3d_ros_pointcloud_conversion.git
