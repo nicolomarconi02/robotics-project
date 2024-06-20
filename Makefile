@@ -47,7 +47,7 @@ run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
 run-robot: world-setup
-	@${SOURCE} && rosrun ${PROJECT_NAME} ur5_generic.py
+	@${SOURCE} && make exec-robot
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -57,6 +57,9 @@ world-setup: position-blocks
 
 position-blocks:
 	@python3 src/world/position-blocks.py
+
+exec-robot:
+	@python3 src/world/exec-robot.py
 
 camera-rolls:
 	@mkdir camera-rolls
@@ -69,6 +72,7 @@ camera-rolls:
 	import_services
 	world-setup
 	position-blocks
+	exec-robot
 	run-movement
 	run-client
 	run-robot
