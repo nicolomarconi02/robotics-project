@@ -1,5 +1,7 @@
 SHELL:=/bin/bash
 
+MAKEFLAGS += --no-print-directory
+
 WORKSPACE_PATH=~/ros_ws
 PROJECT_NAME=robotics_project
 BUILD_COMMAND=catkin_make
