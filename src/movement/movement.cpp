@@ -36,7 +36,20 @@ bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_proje
  * Dummy function
  */
 Path get_path() {
-   Eigen::Matrix<double, 8, 1> joint_configuration = getJointConfiguration();
+   Eigen::Matrix<double, 8, 1> initial_configuration = getJointConfiguration();
+
+   Eigen::Vector3d world_point(0.636, 0.5, 0.909);
+   Eigen::Vector3d base_point = worldToBaseCoordinates(world_point);
+   std::cout << "world_point: " << world_point << std::endl;
+   std::cout << "base_point: " << base_point << std::endl;
+
+   Eigen::Matrix3d rotation_matrix{{1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, -1.0}};
+
+   ROS_INFO("BEGIN moveRobot");
+   Path p = moveRobot(base_point, rotation_matrix);
+   ROS_INFO("FINISH moveRobot");
+
+   Eigen::Matrix<double, 8, 1> joint_configuration = p.row(p.rows() - 1);
    Eigen::Matrix<double, 6, 1> joint{joint_configuration(0), joint_configuration(1), joint_configuration(2),
                                      joint_configuration(3), joint_configuration(4), joint_configuration(5)};
 
@@ -73,25 +86,15 @@ Path get_path() {
    std::cout << jacobian << std::endl;
    std::cout.flush();
 
-   Eigen::Vector3d world_point(1, 1, 2);
-   Eigen::Vector3d base_point = worldToBaseCoordinates(world_point);
-   std::cout << "world_point: " << world_point << std::endl;
-   std::cout << "base_point: " << base_point << std::endl;
+   // insertPath(p, initial_configuration);
 
-   Path p;
-   p.conservativeResize(N_MOVEMENTS, p.cols());
-
-   for (int i = 4; i < N_MOVEMENTS; i++) {
-      double dummy = (i + 1) * 5;
-      for (int j = 0; j < 8; j++) p.row(i).col(j) << dummy;
-   }
-
+   ROS_INFO("END get_path");
    return p;
 }
 
 robotics_project::MovementHandler::Response get_response(Path movements) {
    robotics_project::MovementHandler::Response res;
-   res.path.movements.resize(5);
+   res.path.movements.resize(movements.rows());
 
    // Assigning, in a safe manner, each row of the Path to the response's counterpart
    for (int i = 0; i < movements.rows(); i++)
