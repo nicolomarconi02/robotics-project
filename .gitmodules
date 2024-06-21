@@ -1,6 +1,3 @@
 [submodule "dependencies/Eigen"]
 	path = dependencies/Eigen
 	url = https://gitlab.com/libeigen/eigen.git
-[submodule "dependencies/robotics_project_vision"]
-	path = dependencies/robotics_project_vision
-	url = https://github.com/GioLor33/robotics_project_vision.git
