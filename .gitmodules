@@ -4,3 +4,6 @@
 [submodule "dependencies/open3d_ros_pointcloud_conversion"]
 	path = dependencies/open3d_ros_pointcloud_conversion
 	url = https://github.com/felixchenfy/open3d_ros_pointcloud_conversion.git
+[submodule "dependencies/lego_bricks_detection"]
+	path = dependencies/lego_bricks_detection
+	url = https://github.com/GioLor33/lego_bricks_detection.git
