@@ -8,6 +8,7 @@ BUILD_COMMAND=catkin_make
 INCLUDE_SERVICE_PATH_ORIGIN=${WORKSPACE_PATH}/devel/include/${PROJECT_NAME}/
 INCLUDE_SERVICE_PATH_DESTINATION=generated/${PROJECT_NAME}/
 LOCOSIM_PATH=${WORKSPACE_PATH}/src/locosim
+DEPENDENCIES_PATH=${WORKSPACE_PATH}/src/robotics-project/dependencies
 
 TOTAL_SRV_MSG_FILES=$(shell echo $$(( "$(shell ls srv | wc -l) * 3 + $(shell ls msg | wc -l)" )))
 GENERATED_ROBOTICS_PROJECT_FILES := $(shell echo $$(( "$(shell ls ${INCLUDE_SERVICE_PATH_DESTINATION} | wc -l)" )))
@@ -44,7 +45,7 @@ run-movement:
 	@${SOURCE} && rosrun ${PROJECT_NAME} movement_handler
 
 run-vision: camera-rolls
-	@${SOURCE} && rosrun ${PROJECT_NAME} vision.py
+	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision.py
 
 run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
