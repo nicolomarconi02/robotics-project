@@ -16,6 +16,7 @@ SERVICES=$(shell ls srv -1 | rev | cut -f 2- -d "." | rev)
 MSGS=$(shell ls msg -1 | rev | cut -f 2- -d "." | rev)
 
 SOURCE=source ${WORKSPACE_PATH}/devel/setup.bash
+EXEC_ROBOT=python3 -i ${LOCOSIM_DIR}/robot_control/base_controllers/ur5_generic.py
 
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
@@ -49,7 +50,7 @@ run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
 run-robot: world-setup
-	@${SOURCE} && make exec-robot
+	@${SOURCE} && ${EXEC_ROBOT}
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -59,9 +60,6 @@ world-setup: position-blocks
 
 position-blocks:
 	@python3 src/world/position-blocks.py
-
-exec-robot:
-	@python3 src/world/exec-robot.py
 
 camera-rolls:
 	@mkdir camera-rolls
@@ -74,7 +72,6 @@ camera-rolls:
 	import_services
 	world-setup
 	position-blocks
-	exec-robot
 	run-movement
 	run-client
 	run-robot

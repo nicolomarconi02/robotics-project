@@ -9,7 +9,7 @@ MODELS_SOURCE="$PROJECT/models"
 MODELS_DESTINATION="$LOCOSIM_WORLDS/models"
 
 # world path
-WORLD_NAME="robotics_project"
+WORLD_NAME="tavolo"
 LOCAL_WORLD="$PROJECT/src/world/tmp.world"
 LOCOSIM_WORLD="$LOCOSIM_WORLDS/$WORLD_NAME.world"
 
