@@ -44,7 +44,7 @@ import_services:
 run-movement:
 	@${SOURCE} && rosrun ${PROJECT_NAME} movement_handler
 
-run-vision: camera-rolls
+run-vision: camera-rolls predictions
 	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision.py
 
 run-client:
@@ -64,6 +64,8 @@ position-blocks:
 
 camera-rolls:
 	@mkdir camera-rolls
+
+predictions:
 	@mkdir predictions
 
 .PHONY:
