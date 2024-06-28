@@ -18,6 +18,7 @@ from sensor_msgs import point_cloud2
 from robotics_project.srv import GetBlocks
 
 from datetime import datetime
+import os
 
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
@@ -53,7 +54,7 @@ class VisionManagerClass():
     def __init__(self, robot_name="ur5"):
         ros.init_node('vision')
 
-        self.predictor = vision.Object_Detection(model="dependencies/robotics_project_vision/best.pt", path_to_predictions=f"predictions/", save_image=True)
+        self.predictor = vision.Object_Detection(model="dependencies/robotics_project_vision/best.pt")
         self.manage_cloud = Manage_Point_Cloud()
         
         # Image from ZED Node
@@ -96,7 +97,8 @@ class VisionManagerClass():
         cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
         # predict with the object-detection model
-        predicted_objects = self.predictor.predict(image_cv2, imgName, top_crop=370, print_to_console=True)
+        prediction_path = f"predictions/{imgName}/"
+        predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, print_to_console=True)
 
         #############################################################
         #### DA QUI NON RICHIAMO PIù FUNZIONI, E' CODICE DIRETTO ####
@@ -104,6 +106,10 @@ class VisionManagerClass():
 
         obj = 1
         for prediction in predicted_objects:
+
+            subdir = f"obj{obj}"
+            prediction_sub_path = prediction_path + "/" + subdir + "/"
+            os.mkdir(prediction_sub_path)
 
             x1 = math.floor(prediction[0])
             y1 = math.floor(prediction[1]) 
@@ -141,7 +147,7 @@ class VisionManagerClass():
                     dictionary[z] = [point[:2]]
 
             ## plot 3D graph of the block
-            plot_points.plot_3D_graph(np.array(obj_points_world), f"{imgName}_plot3D_representation.png", f"predictions/", open_preview=True)
+            plot_points.plot_3D_graph(np.array(obj_points_world), f"3D_representation", prediction_sub_path, open_preview=False)
 
             # slice of the graph with z=BLOCK_LEVEL
             block_border = np.array(dictionary[BLOCK_LEVEL])
@@ -151,7 +157,7 @@ class VisionManagerClass():
             point_max_x = block_border[:,0].argmax()
             point_min_y = block_border[:,1].argmin()
 
-            plot_points.plot_2D_graph(np.array(block_border), f"{imgName}_plot_borders", f"predictions/")
+            plot_points.plot_2D_graph(np.array(block_border), "borders", prediction_sub_path)
 
             obj += 1
         
