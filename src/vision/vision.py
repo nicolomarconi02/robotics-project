@@ -22,8 +22,8 @@ from datetime import datetime
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
 
-BLOCK_LEVEL = 0.887         # z value for which we are sure to not intersect with the work-station/ground
-ERROR_Z = 3                 # meaning min_value -> 0.001
+BLOCK_LEVEL = 0.89         # z value for which we are sure to not intersect with the work-station/ground
+ERROR_Z = 2                 # meaning min_value -> 0.01
 ERROR_ON_Y = 30             # error found empirically. The predictor translate of 25 pixel the y coordinates of the bbox
 
 # from zed frame to world frame
@@ -53,7 +53,7 @@ class VisionManagerClass():
     def __init__(self, robot_name="ur5"):
         ros.init_node('vision')
 
-        self.predictor = vision.Object_Detection(model="dependencies/robotics_project_vision/best.pt", path_to_predictions="predictions/", save_image=True)
+        self.predictor = vision.Object_Detection(model="dependencies/robotics_project_vision/best.pt", path_to_predictions=f"predictions/", save_image=True)
         self.manage_cloud = Manage_Point_Cloud()
         
         # Image from ZED Node
@@ -102,57 +102,58 @@ class VisionManagerClass():
         #### DA QUI NON RICHIAMO PIù FUNZIONI, E' CODICE DIRETTO ####
         #############################################################
 
+        obj = 1
+        for prediction in predicted_objects:
 
-        #for prediction in predicted_objects:
-        prediction = predicted_objects[0]
-        x1 = math.floor(prediction[0])
-        y1 = math.floor(prediction[1]) #- ERROR_ON_Y
-        x2 = math.floor(prediction[2])
-        y2 = math.floor(prediction[3]) #+ ERROR_ON_Y
-        confidence = prediction[4]
-        obj_class = int(prediction[5])
-        obj_name = prediction[6]
+            x1 = math.floor(prediction[0])
+            y1 = math.floor(prediction[1]) 
+            x2 = math.floor(prediction[2])
+            y2 = math.floor(prediction[3]) 
+            confidence = prediction[4]
+            obj_class = int(prediction[5])
+            obj_name = prediction[6]
 
-        # iteration over all the area of interest, getting 2D points
-        obj_points_2d = []
-        for i in range(x1,x2):
-            for j in range(y1,y2):
-                obj_points_2d.append((i,j)) 
-        
-        # getting 3D points from point cloud
-        obj_points_3d = self.manage_cloud.read_cloud(pc2, obj_points_2d)
-        print(len(obj_points_3d))
+            # iteration over all the area of interest, getting 2D points
+            obj_points_2d = []
+            for i in range(x1,x2):
+                for j in range(y1,y2):
+                    obj_points_2d.append((i,j)) 
+            
+            # getting 3D points from point cloud
+            obj_points_3d = self.manage_cloud.read_cloud(pc2, obj_points_2d)
+            print(len(obj_points_3d))
 
-        # trasforming each point in world frame
-        obj_points_world = []
-        dictionary = {}
-        for point in obj_points_3d:
-            point = ROTATIONAL_MATRIX.dot(point) + ZED_WRT_WORLD
-            point = np.array(point)
-            obj_points_world.append(point)
+            # trasforming each point in world frame
+            obj_points_world = []
+            dictionary = {}
+            for point in obj_points_3d:
+                point = ROTATIONAL_MATRIX.dot(point) + ZED_WRT_WORLD
+                point = np.array(point)
+                obj_points_world.append(point)
 
-            # creating a dictionary to filter over z-value
-            z = round(point[2],ERROR_Z)
-            if z in dictionary:
-                tmp = dictionary[z]
-                tmp.append(point[:2])
-                dictionary[z] = tmp
-            else:
-                dictionary[z] = [point[:2]]
+                # creating a dictionary to filter over z-value
+                z = round(point[2],ERROR_Z)
+                if z in dictionary:
+                    tmp = dictionary[z]
+                    tmp.append(point[:2])
+                    dictionary[z] = tmp
+                else:
+                    dictionary[z] = [point[:2]]
 
-        ## plot 3D graph of the block
-        plot_points.plot_3D_graph(np.array(obj_points_world))
+            ## plot 3D graph of the block
+            plot_points.plot_3D_graph(np.array(obj_points_world), f"{imgName}_plot3D_representation.png", f"predictions/", open_preview=True)
 
-        # slice of the graph with z=BLOCK_LEVEL
-        block_border = np.array(dictionary[BLOCK_LEVEL])
+            # slice of the graph with z=BLOCK_LEVEL
+            block_border = np.array(dictionary[BLOCK_LEVEL])
 
-        # filter the section block_border, getting the three vertexes
-        point_min_x = block_border[:,0].argmin()
-        point_max_x = block_border[:,0].argmax()
-        point_min_y = block_border[:,1].argmin()
+            # filter the section block_border, getting the three vertexes
+            point_min_x = block_border[:,0].argmin()
+            point_max_x = block_border[:,0].argmax()
+            point_min_y = block_border[:,1].argmin()
 
-        plot_points.plot_graph_2d(np.array(block_border))
+            plot_points.plot_2D_graph(np.array(block_border), f"{imgName}_plot_borders", f"predictions/")
 
+            obj += 1
         
         ##print dictionary
         #count=0
