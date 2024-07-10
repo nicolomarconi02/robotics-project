@@ -1,5 +1,6 @@
 #include "robotics_project/utils.h"
 
+#include <complex>
 #include <string>
 
 #include "ros/ros.h"
@@ -121,7 +122,7 @@ Eigen::Matrix<double, 8, 1> getJointConfiguration() {
                                       joint_configuration->position[1], joint_configuration->position[2]};
 }
 
-Eigen::Matrix4d worldToBaseTransformationMatrix() {
+constexpr const Eigen::Matrix4d worldToBaseTransformationMatrix() {
    Eigen::Matrix4d transformationMatrix{
        {1.0, 0.0, 0.0, 0.5}, {0.0, -1.0, 0.0, 0.35}, {0.0, 0.0, -1.0, 1.75}, {0.0, 0.0, 0.0, 1.0}};
    return transformationMatrix;
@@ -142,6 +143,121 @@ void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguratio
 void insertPath(Path& path, const Path& pathToInsert) {
    path.conservativeResize(path.rows() + pathToInsert.rows(), path.cols());
    path.bottomRows(pathToInsert.rows()) = pathToInsert;
+}
+
+double distanceBetweenPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2) {
+   return (point1 - point2).norm();
+}
+
+MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
+   double thetaInitial = std::atan2(initialPosition(1), initialPosition(0));
+   double thetaFinal = std::atan2(finalPosition(1), finalPosition(0));
+
+   double delta = thetaFinal - thetaInitial;
+   delta = std::atan2(std::sin(delta), std::cos(delta));
+
+   if (delta > 0) {
+      if (delta <= M_PI) {
+         return MovementDirection_::CLOCKWISE;
+      } else {
+         return MovementDirection_::COUNTERCLOCKWISE;
+      }
+   }
+   if (delta < 0) {
+      if (delta >= -M_PI) {
+         return MovementDirection_::COUNTERCLOCKWISE;
+      } else {
+         return MovementDirection_::CLOCKWISE;
+      }
+   }
+   return MovementDirection_::NONE;
+}
+
+constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle() {
+   Eigen::Matrix<double, N_SEGMENTS, 3> points;
+   for (double k = 0.0; k < N_SEGMENTS; k += 1.0) {
+      std::complex<double> zk = RADIUS_CIRCLE * std::exp(std::complex<double>(0.0, 2.0 * M_PI * (k / N_SEGMENTS)));
+      Eigen::Vector3d point(zk.real(), zk.imag(), STD_HEIGHT);
+      points.row(k) = point;
+   }
+   return points;
+}
+
+Trajectory computeTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
+   Eigen::Vector3d p1(
+       (initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
+       (initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
+       STD_HEIGHT);
+   Eigen::Vector3d p2(
+       (-initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
+       (-initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
+       STD_HEIGHT);
+   Eigen::Vector3d initialPosOnCircle =
+       (distanceBetweenPoints(initialPosition, p1) < distanceBetweenPoints(initialPosition, p2)) ? p1 : p2;
+
+   Eigen::Vector3d p3((finalPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
+                      (finalPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
+                      STD_HEIGHT);
+   Eigen::Vector3d p4((-finalPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
+                      (-finalPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
+                      STD_HEIGHT);
+   Eigen::Vector3d finalPosOnCircle =
+       (distanceBetweenPoints(finalPosition, p3) < distanceBetweenPoints(finalPosition, p4)) ? p3 : p4;
+
+   MovementDirection direction = getMovementDirection(initialPosOnCircle, finalPosOnCircle);
+
+   auto pointsOnCircle = getNPointsOnCircle();
+
+   double minDistanceInitial = 1000.0;
+   double minDistanceFinal = 1000.0;
+   int indexInitial = 0;
+   int indexFinal = 0;
+   for (int i = 0; i < N_SEGMENTS; i++) {
+      double distanceInitial = distanceBetweenPoints(initialPosOnCircle, pointsOnCircle.row(i));
+      double distanceFinal = distanceBetweenPoints(finalPosOnCircle, pointsOnCircle.row(i));
+      if (distanceInitial < minDistanceInitial) {
+         minDistanceInitial = distanceInitial;
+         indexInitial = i;
+      }
+      if (distanceFinal < minDistanceFinal) {
+         minDistanceFinal = distanceFinal;
+         indexFinal = i;
+      }
+   }
+   int increment = 0;
+   if (direction == MovementDirection_::CLOCKWISE) {
+      increment = 1;
+      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial)) ==
+          MovementDirection_::COUNTERCLOCKWISE) {
+         indexInitial = (indexInitial + increment) % N_SEGMENTS;
+      }
+      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal)) ==
+          MovementDirection_::COUNTERCLOCKWISE) {
+         indexFinal = (indexFinal + increment) % N_SEGMENTS;
+      }
+   } else if (direction == MovementDirection_::COUNTERCLOCKWISE) {
+      increment = -1;
+      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial)) == MovementDirection_::CLOCKWISE) {
+         indexInitial = (indexInitial + increment) % N_SEGMENTS;
+      }
+      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal)) == MovementDirection_::CLOCKWISE) {
+         indexFinal = (indexFinal + increment) % N_SEGMENTS;
+      }
+   }
+
+   Trajectory trajectory;
+   trajectory.conservativeResize(trajectory.size() + 1, 3);
+   trajectory.row(trajectory.rows() - 1) = initialPosOnCircle;
+
+   for (int i = indexInitial; i != indexFinal; i = (i + increment) % N_SEGMENTS) {
+      trajectory.conservativeResize(trajectory.rows() + 1, 3);
+      trajectory.row(trajectory.rows() - 1) = pointsOnCircle.row(i);
+   }
+
+   trajectory.conservativeResize(trajectory.rows() + 1, 3);
+   trajectory.row(trajectory.rows() - 1) = finalPosOnCircle;
+
+   return trajectory;
 }
 
 Path moveRobot(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix) {
