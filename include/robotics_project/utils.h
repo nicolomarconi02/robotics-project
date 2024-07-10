@@ -30,8 +30,10 @@ std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(
 Eigen::Matrix<double, 8, 1> getJointConfiguration();
 
 Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point);
+Eigen::Matrix4d worldToBaseTransformationMatrix();
 
 void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguration);
+void insertPath(Path& path, const Path& pathToInsert);
 
 Path moveRobot(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix);
 
@@ -43,5 +45,16 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
                                       const Eigen::Vector3d& initialPosition,
                                       const Eigen::Quaterniond& initialQuaternion, const Eigen::Vector3d& finalPosition,
                                       const Eigen::Quaterniond& finalQuaternion);
+
+Eigen::Matrix<double, 6, 1> computeQdot0(const Eigen::Matrix<double, 6, 1>& jointsState);
+
+Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
+                                                     const Eigen::Vector3d& initialPosition,
+                                                     const Eigen::Quaterniond& initialQuaternion,
+                                                     const Eigen::Vector3d& finalPosition,
+                                                     const Eigen::Quaterniond& finalQuaternion, const double& wt,
+                                                     const double& lambda0);
+
+void runOptimization(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix);
 
 #endif

@@ -121,9 +121,14 @@ Eigen::Matrix<double, 8, 1> getJointConfiguration() {
                                       joint_configuration->position[1], joint_configuration->position[2]};
 }
 
-Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
+Eigen::Matrix4d worldToBaseTransformationMatrix() {
    Eigen::Matrix4d transformationMatrix{
-       {-1.0, 0.0, 0.0, 0.5}, {0.0, 1.0, 0.0, 0.35}, {0.0, 0.0, -1.0, 1.75}, {0.0, 0.0, 0.0, 1.0}};
+       {1.0, 0.0, 0.0, 0.5}, {0.0, -1.0, 0.0, 0.35}, {0.0, 0.0, -1.0, 1.75}, {0.0, 0.0, 0.0, 1.0}};
+   return transformationMatrix;
+}
+
+Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
+   Eigen::Matrix4d transformationMatrix = worldToBaseTransformationMatrix();
 
    Eigen::Vector4d tmpPoint = transformationMatrix.inverse() * Eigen::Vector4d{point(0), point(1), point(2), 1.0};
    return Eigen::Vector3d{tmpPoint(0), tmpPoint(1), tmpPoint(2)};
@@ -132,6 +137,11 @@ Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
 void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
    path.conservativeResize(path.rows() + 1, path.cols());
    path.row(path.rows() - 1) = jointConfiguration;
+}
+
+void insertPath(Path& path, const Path& pathToInsert) {
+   path.conservativeResize(path.rows() + pathToInsert.rows(), path.cols());
+   path.bottomRows(pathToInsert.rows()) = pathToInsert;
 }
 
 Path moveRobot(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix) {
@@ -162,7 +172,7 @@ double calculateDampingFactor(double w, double wt, double lambda0) {
 }
 Eigen::Matrix<double, 6, 6> calculateDampedPseudoInverse(const Eigen::Matrix<double, 6, 6>& jacobian, double lambda) {
    return jacobian.transpose() *
-          (jacobian * jacobian.transpose() + lambda * Eigen::Matrix<double, 6, 6>::Identity()).inverse();
+          (jacobian * jacobian.transpose() + std::pow(lambda, 2) * Eigen::Matrix<double, 6, 6>::Identity()).inverse();
 }
 
 Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
@@ -196,8 +206,8 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
 
       jacobian_instantK = getJacobian(jointState_instantK);
-      static double lambda0 = 0.00015;
-      static double wt = 0.01;
+      static double lambda0 = 0.001;
+      static double wt = 0.022;
       double w = calculateDeterminantJJT(jacobian_instantK);
       double lambda = calculateDampingFactor(w, wt, lambda0);
       ROS_INFO("w: %f", w);
@@ -223,7 +233,11 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       velocities_instantK << positionalVelocity_instantK + (Kp * positionError_instantK),
           angularVelocity_instantK + (Kq * quaternionError_instantK.vec());
 
-      jointStateDot_instantK = pseudoInverseJacobian_instantK * velocities_instantK;
+      auto qdot0 = computeQdot0(jointState_instantK);
+
+      jointStateDot_instantK =
+          pseudoInverseJacobian_instantK * velocities_instantK +
+          (Eigen::Matrix<double, 6, 6>::Identity() - pseudoInverseJacobian_instantK * jacobian_instantK) * qdot0;
       jointState_instantK += jointStateDot_instantK * TIME_STEP;
       Eigen::Matrix<double, 8, 1> path_instantK;
       path_instantK << jointState_instantK, gripperState;
@@ -232,4 +246,112 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
    }
 
    return path;
+}
+
+Eigen::Matrix<double, 6, 1> computeQdot0(const Eigen::Matrix<double, 6, 1>& jointsState) {
+   static double k0 = 200;
+   Eigen::Matrix<double, 6, 1> qdot0;
+   qdot0 = -k0 * jointsState;
+   return qdot0;
+}
+
+Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
+                                                     const Eigen::Vector3d& initialPosition,
+                                                     const Eigen::Quaterniond& initialQuaternion,
+                                                     const Eigen::Vector3d& finalPosition,
+                                                     const Eigen::Quaterniond& finalQuaternion, const double& wt,
+                                                     const double& lambda0) {
+   Eigen::Matrix<double, 6, 6> jacobian_instantK, pseudoInverseJacobian_instantK;
+
+   Eigen::Vector2d gripperState{jointConfiguration(6), jointConfiguration(7)};
+
+   Eigen::Matrix<double, 6, 1> jointState_instantK, jointStateDot_instantK;
+   Eigen::Matrix<double, 1, 8> path;
+
+   Eigen::Quaterniond quaternion_instantK;
+   Eigen::Matrix<double, 6, 1> velocities_instantK;
+
+   Eigen::Matrix3d Kp = Eigen::Matrix3d::Identity() * 10;
+   Eigen::Matrix3d Kq = Eigen::Matrix3d::Identity() * 1;
+   jointState_instantK = jointConfiguration.head(6);
+   for (double instantK = 0.0; instantK < TOTAL_TIME; instantK += TIME_STEP) {
+      auto [pe_instantK, Re_instantK, transformationMatrix_instantK] = directKinematics(jointState_instantK);
+      quaternion_instantK = Eigen::Quaterniond{Re_instantK};
+
+      Eigen::Vector3d positionalVelocity_instantK = (lerp(initialPosition, finalPosition, instantK) -
+                                                     lerp(initialPosition, finalPosition, instantK - TIME_STEP)) /
+                                                    TIME_STEP;
+      Eigen::Quaterniond quaternionVelocity_instantK = slerp(initialQuaternion, finalQuaternion, instantK + TIME_STEP) *
+                                                       slerp(initialQuaternion, finalQuaternion, instantK).conjugate();
+      Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
+
+      jacobian_instantK = getJacobian(jointState_instantK);
+      // static double lambda0 = 1e-8;
+      double w = calculateDeterminantJJT(jacobian_instantK);
+      double lambda = calculateDampingFactor(w, wt, lambda0);
+      // ROS_INFO("w: %f", w);
+      // ROS_INFO("lambda: %f", lambda);
+      pseudoInverseJacobian_instantK = calculateDampedPseudoInverse(jacobian_instantK, lambda);
+      // ROS_INFO("PSEUDOINVERSE");
+      // ROS_INFO("%s", pseudoInverseJacobian_instantK_str.c_str());
+      if (abs(jacobian_instantK.determinant()) < 1.0e-5) {
+         ROS_WARN("NEAR SINGULARITY wt: %f lambda0: %f", wt, lambda0);
+      }
+
+      Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK) - pe_instantK;
+      Eigen::Quaterniond quaternionError_instantK =
+          slerp(initialQuaternion, finalQuaternion, instantK) * quaternion_instantK.conjugate();
+
+      velocities_instantK << positionalVelocity_instantK + (Kp * positionError_instantK),
+          angularVelocity_instantK + (Kq * quaternionError_instantK.vec());
+
+      auto qdot0 = computeQdot0(jointState_instantK);
+
+      jointStateDot_instantK =
+          pseudoInverseJacobian_instantK * velocities_instantK +
+          (Eigen::Matrix<double, 6, 6>::Identity() - pseudoInverseJacobian_instantK * jacobian_instantK) * qdot0;
+      jointState_instantK += jointStateDot_instantK * TIME_STEP;
+      path = Eigen::Matrix<double, 1, 8>{jointState_instantK(0), jointState_instantK(1), jointState_instantK(2),
+                                         jointState_instantK(3), jointState_instantK(4), jointState_instantK(5),
+                                         gripperState(0),        gripperState(1)};
+   }
+
+   return path;
+}
+
+void runOptimization(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix) {
+   // Eigen::Matrix<double, 8, 1> jointConfiguration = getJointConfiguration();
+   Eigen::Matrix<double, 8, 1> jointConfiguration = Eigen::Matrix<double, 8, 1>{
+       -0.320096, -0.780249, -2.56081, -1.63051, -1.5705, 3.4911, -4.38614e-05, 7.69203e-06};
+
+   Eigen::Matrix<double, 6, 1> jointState =
+       Eigen::Matrix<double, 6, 1>{jointConfiguration(0), jointConfiguration(1), jointConfiguration(2),
+                                   jointConfiguration(3), jointConfiguration(4), jointConfiguration(5)};
+   auto [pe, Re, transformationMatrix] = directKinematics(jointState);
+
+   Eigen::Quaterniond initialQuaternion(Re);
+   Eigen::Quaterniond finalQuaternion(finalRotationMatrix);
+
+   double currWt = 0.001;
+   double currLambda0 = 1e-8;
+   Eigen::Vector3d minDelta(1000.0, 1000.0, 1000.0);
+   double min = 1000.0;
+   for (double lambda0 = 1e-8; lambda0 < 0.01; lambda0 *= 10) {
+      for (double wt = 0.001; wt < 0.2; wt += 0.001) {
+         // std::cout << "wt: " << wt << std::endl;
+         std::fflush(stdout);
+         auto jc = optimizeParamDiffKinQuat(jointConfiguration, pe, initialQuaternion, finalPosition, finalQuaternion,
+                                            wt, lambda0);
+         Eigen::Matrix<double, 6, 1> js = Eigen::Matrix<double, 6, 1>{jc(0), jc(1), jc(2), jc(3), jc(4), jc(5)};
+         auto [pe_i, Re_i, transformationMatrix_i] = directKinematics(js);
+         double tmp = (pe - pe_i).norm();
+         if (tmp < min) {
+            min = tmp;
+            minDelta = pe - pe_i;
+            currWt = wt;
+            currLambda0 = lambda0;
+         }
+      }
+   }
+   std::cout << "MIN DELTA: " << minDelta << " wt: " << currWt << " lambda0: " << currLambda0 << std::endl;
 }

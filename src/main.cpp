@@ -45,7 +45,9 @@ int main(int argc, char **argv) {
 }
 
 void move(ros::Publisher &pub, Path path) {
-   for (int i = 0; i < path.rows(); i++) move_row(pub, path.row(i));
+   for (int i = 0; i < path.rows(); i++) {
+      move_row(pub, path.row(i));
+   }
 }
 
 void move_row(ros::Publisher &pub, PathRow vals) {

@@ -9,6 +9,15 @@ Path get_path();
 
 int main(int argc, char **argv) {
    /* Initialize ROS node's name */
+
+   // Eigen::Vector3d world_point(0.218, 0.649, 1.17);
+   // Eigen::Vector3d base_point = worldToBaseCoordinates(world_point);
+   // std::cout << "world_point: " << world_point << std::endl;
+   // std::cout << "base_point: " << base_point << std::endl;
+
+   // Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
+   // runOptimization(base_point, rotation_matrix);
+
    ros::init(argc, argv, "robotics_project_movement_handler");
    std::cout << "MOVEMENT HANDLER Process: STARTED" << std::endl;
 
@@ -37,16 +46,31 @@ bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_proje
  */
 Path get_path() {
    Eigen::Matrix<double, 8, 1> initial_configuration = getJointConfiguration();
+   for (auto val : initial_configuration) {
+      std::cout << val << " ";
+   }
 
-   Eigen::Vector3d world_point(0.636, 0.5, 0.909);
-   Eigen::Vector3d base_point = worldToBaseCoordinates(world_point);
-   std::cout << "world_point: " << world_point << std::endl;
-   std::cout << "base_point: " << base_point << std::endl;
+   Eigen::Vector3d world_point1(0.636, 0.5, 1.109);
+   Eigen::Vector3d world_point2(0.218, 0.649, 1.170);
+   // Eigen::Vector3d world_point3(0.326, 0.307, 1.170);
+   Eigen::Vector3d base_point1 = worldToBaseCoordinates(world_point1);
+   Eigen::Vector3d base_point2 = worldToBaseCoordinates(world_point2);
+   // Eigen::Vector3d base_point3 = worldToBaseCoordinates(world_point3);
+   std::cout << "world_point1: " << world_point1 << std::endl;
+   std::cout << "world_point2: " << world_point2 << std::endl;
+   // std::cout << "world_point3: " << world_point3 << std::endl;
+   std::cout << "base_point1: " << base_point1 << std::endl;
+   std::cout << "base_point2: " << base_point2 << std::endl;
+   // std::cout << "base_point3: " << base_point3 << std::endl;
 
-   Eigen::Matrix3d rotation_matrix{{1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, -1.0}};
+   Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
 
    ROS_INFO("BEGIN moveRobot");
-   Path p = moveRobot(base_point, rotation_matrix);
+   Path p = moveRobot(base_point1, rotation_matrix);
+   Path p2 = moveRobot(base_point2, rotation_matrix);
+   // Path p3 = moveRobot(base_point3, rotation_matrix);
+   insertPath(p, p2);
+   // insertPath(p, p3);
    ROS_INFO("FINISH moveRobot");
 
    Eigen::Matrix<double, 8, 1> joint_configuration = p.row(p.rows() - 1);
