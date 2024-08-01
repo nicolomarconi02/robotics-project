@@ -104,7 +104,7 @@ std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(
    return std::make_tuple(pe, Re, transformation_matrix);
 }
 
-Eigen::Matrix<double, 8, 1> getJointConfiguration() {
+std::tuple<Eigen::Matrix<double, 6, 1>, Eigen::Matrix<double, 8, 1>> getJointConfiguration() {
    // index from 0 to 7
    // Shoulder pan joint           index:4
    // Shoulder lift joint          index:3
@@ -116,12 +116,20 @@ Eigen::Matrix<double, 8, 1> getJointConfiguration() {
    // Hand2 joint                  index:2
    boost::shared_ptr<sensor_msgs::JointState const> joint_configuration =
        ros::topic::waitForMessage<sensor_msgs::JointState>("/ur5/joint_states");
-   return Eigen::Matrix<double, 8, 1>{joint_configuration->position[4], joint_configuration->position[3],
-                                      joint_configuration->position[0], joint_configuration->position[5],
-                                      joint_configuration->position[6], joint_configuration->position[7],
-                                      joint_configuration->position[1], joint_configuration->position[2]};
+   return std::make_tuple<Eigen::Matrix<double, 6, 1>, Eigen::Matrix<double, 8, 1>>(
+       Eigen::Matrix<double, 6, 1>{joint_configuration->position[4], joint_configuration->position[3],
+                                   joint_configuration->position[0], joint_configuration->position[5],
+                                   joint_configuration->position[6], joint_configuration->position[7]},
+       Eigen::Matrix<double, 8, 1>{joint_configuration->position[4], joint_configuration->position[3],
+                                   joint_configuration->position[0], joint_configuration->position[5],
+                                   joint_configuration->position[6], joint_configuration->position[7],
+                                   joint_configuration->position[1], joint_configuration->position[2]});
 }
 
+Eigen::Matrix<double, 6, 1> getJointState(const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
+   return Eigen::Matrix<double, 6, 1>{jointConfiguration(0), jointConfiguration(1), jointConfiguration(2),
+                                      jointConfiguration(3), jointConfiguration(4), jointConfiguration(5)};
+}
 constexpr const Eigen::Matrix4d worldToBaseTransformationMatrix() {
    Eigen::Matrix4d transformationMatrix{
        {1.0, 0.0, 0.0, 0.5}, {0.0, -1.0, 0.0, 0.35}, {0.0, 0.0, -1.0, 1.75}, {0.0, 0.0, 0.0, 1.0}};
@@ -133,6 +141,11 @@ Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
 
    Eigen::Vector4d tmpPoint = transformationMatrix.inverse() * Eigen::Vector4d{point(0), point(1), point(2), 1.0};
    return Eigen::Vector3d{tmpPoint(0), tmpPoint(1), tmpPoint(2)};
+}
+
+void insertTrajectory(Trajectory& trajectory, const Eigen::Vector3d& point) {
+   trajectory.conservativeResize(trajectory.rows() + 1, trajectory.cols());
+   trajectory.row(trajectory.rows() - 1) = point;
 }
 
 void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
@@ -154,9 +167,10 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
    double thetaFinal = std::atan2(finalPosition(1), finalPosition(0));
 
    double delta = thetaFinal - thetaInitial;
+
    delta = std::atan2(std::sin(delta), std::cos(delta));
 
-   if (delta > 0) {
+   if (delta >= 0) {
       if (delta <= M_PI) {
          return MovementDirection_::CLOCKWISE;
       } else {
@@ -183,7 +197,7 @@ constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle() {
    return points;
 }
 
-Trajectory computeTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
+Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
    Eigen::Vector3d p1(
        (initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
        (initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
@@ -205,6 +219,12 @@ Trajectory computeTrajectory(const Eigen::Vector3d& initialPosition, const Eigen
        (distanceBetweenPoints(finalPosition, p3) < distanceBetweenPoints(finalPosition, p4)) ? p3 : p4;
 
    MovementDirection direction = getMovementDirection(initialPosOnCircle, finalPosOnCircle);
+   if (direction == MovementDirection_::NONE) {
+      return Trajectory();
+   }
+   std::cout << "Initial position on circle: " << initialPosOnCircle << std::endl;
+   std::cout << "Final position on circle: " << finalPosOnCircle << std::endl;
+   std::cout << "Direction: " << direction << std::endl;
 
    auto pointsOnCircle = getNPointsOnCircle();
 
@@ -244,33 +264,37 @@ Trajectory computeTrajectory(const Eigen::Vector3d& initialPosition, const Eigen
          indexFinal = (indexFinal + increment) % N_SEGMENTS;
       }
    }
-
    Trajectory trajectory;
-   trajectory.conservativeResize(trajectory.size() + 1, 3);
-   trajectory.row(trajectory.rows() - 1) = initialPosOnCircle;
-
+   insertTrajectory(trajectory, initialPosOnCircle);
    for (int i = indexInitial; i != indexFinal; i = (i + increment) % N_SEGMENTS) {
-      trajectory.conservativeResize(trajectory.rows() + 1, 3);
-      trajectory.row(trajectory.rows() - 1) = pointsOnCircle.row(i);
+      insertTrajectory(trajectory, pointsOnCircle.row(i));
    }
-
-   trajectory.conservativeResize(trajectory.rows() + 1, 3);
-   trajectory.row(trajectory.rows() - 1) = finalPosOnCircle;
+   insertTrajectory(trajectory, finalPosOnCircle);
+   insertTrajectory(trajectory, finalPosition);
 
    return trajectory;
 }
 
-Path moveRobot(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix) {
-   Eigen::Matrix<double, 8, 1> jointConfiguration = getJointConfiguration();
-   Eigen::Matrix<double, 6, 1> jointState =
-       Eigen::Matrix<double, 6, 1>{jointConfiguration(0), jointConfiguration(1), jointConfiguration(2),
-                                   jointConfiguration(3), jointConfiguration(4), jointConfiguration(5)};
+Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
+               const Eigen::Matrix3d& finalRotationMatrix, const double maxTime) {
+   auto jointState = getJointState(jointConfiguration);
    auto [pe, Re, transformationMatrix] = directKinematics(jointState);
 
    Eigen::Quaterniond initialQuaternion(Re);
    Eigen::Quaterniond finalQuaternion(finalRotationMatrix);
 
-   return differentialKinematicsQuaternion(jointConfiguration, pe, initialQuaternion, finalPosition, finalQuaternion);
+   return differentialKinematicsQuaternion(jointConfiguration, pe, initialQuaternion, finalPosition, finalQuaternion,
+                                           maxTime);
+}
+
+Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
+               const Eigen::Quaterniond& finalQuaternion, const double maxTime) {
+   auto jointState = getJointState(jointConfiguration);
+   auto [pe, Re, transformationMatrix] = directKinematics(jointState);
+   Eigen::Quaterniond initialQuaternion(Re);
+
+   return differentialKinematicsQuaternion(jointConfiguration, pe, initialQuaternion, finalPosition, finalQuaternion,
+                                           maxTime);
 }
 
 double calculateDeterminantJJT(const Eigen::Matrix<double, 6, 6>& jacobian) {
@@ -294,7 +318,7 @@ Eigen::Matrix<double, 6, 6> calculateDampedPseudoInverse(const Eigen::Matrix<dou
 Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
                                       const Eigen::Vector3d& initialPosition,
                                       const Eigen::Quaterniond& initialQuaternion, const Eigen::Vector3d& finalPosition,
-                                      const Eigen::Quaterniond& finalQuaternion) {
+                                      const Eigen::Quaterniond& finalQuaternion, const double maxTime) {
    Eigen::Matrix<double, 6, 6> jacobian_instantK, pseudoInverseJacobian_instantK;
 
    Eigen::Vector2d gripperState{jointConfiguration(6), jointConfiguration(7)};
@@ -310,7 +334,9 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
    jointState_instantK = jointConfiguration.head(6);
    insertPath(path, jointConfiguration);
 
-   for (double instantK = 0.0; instantK < TOTAL_TIME; instantK += TIME_STEP) {
+   static const double tolerance = 0.005;
+
+   for (double instantK = 0.0; instantK < maxTime; instantK += TIME_STEP) {
       auto [pe_instantK, Re_instantK, transformationMatrix_instantK] = directKinematics(jointState_instantK);
       quaternion_instantK = Eigen::Quaterniond{Re_instantK};
 
@@ -326,18 +352,7 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       static double wt = 0.022;
       double w = calculateDeterminantJJT(jacobian_instantK);
       double lambda = calculateDampingFactor(w, wt, lambda0);
-      ROS_INFO("w: %f", w);
-      ROS_INFO("lambda: %f", lambda);
       pseudoInverseJacobian_instantK = calculateDampedPseudoInverse(jacobian_instantK, lambda);
-      ROS_INFO("PSEUDOINVERSE");
-      std::string pseudoInverseJacobian_instantK_str = "";
-      for (int i = 0; i < 6; i++) {
-         for (int j = 0; j < 6; j++) {
-            pseudoInverseJacobian_instantK_str += std::to_string(pseudoInverseJacobian_instantK(i, j)) + " ";
-         }
-         pseudoInverseJacobian_instantK_str += "\n";
-      }
-      ROS_INFO("%s", pseudoInverseJacobian_instantK_str.c_str());
       if (abs(jacobian_instantK.determinant()) < 1.0e-5) {
          ROS_WARN("NEAR SINGULARITY");
       }
@@ -358,7 +373,10 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       Eigen::Matrix<double, 8, 1> path_instantK;
       path_instantK << jointState_instantK, gripperState;
       insertPath(path, path_instantK);
-      //   ROS_INFO("%f", instantK);
+      if ((finalPosition - pe_instantK).norm() < tolerance) {
+         ROS_INFO("REACHED %f", instantK);
+         break;
+      }
    }
 
    return path;
@@ -436,7 +454,6 @@ Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double,
 }
 
 void runOptimization(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix) {
-   // Eigen::Matrix<double, 8, 1> jointConfiguration = getJointConfiguration();
    Eigen::Matrix<double, 8, 1> jointConfiguration = Eigen::Matrix<double, 8, 1>{
        -0.320096, -0.780249, -2.56081, -1.63051, -1.5705, 3.4911, -4.38614e-05, 7.69203e-06};
 

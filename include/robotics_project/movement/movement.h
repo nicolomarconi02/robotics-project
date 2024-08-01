@@ -10,6 +10,8 @@
 
 bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res);
 
+Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation);
+
 /* Interactions with main */
 robotics_project::MovementHandler::Response get_response(Path movements);
 

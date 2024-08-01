@@ -7,9 +7,9 @@
 
 #define TOTAL_TIME 10.0
 #define TIME_STEP 0.1
-#define N_SEGMENTS 20
+#define N_SEGMENTS 40
 #define STD_HEIGHT 0.5
-#define RADIUS_CIRCLE 0.4
+#define RADIUS_CIRCLE 0.5
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
@@ -34,19 +34,25 @@ Eigen::Matrix<double, 6, 6> getJacobian(const Eigen::Matrix<double, 6, 1>& joint
 std::tuple<Eigen::Vector3d, Eigen::Matrix3d, Eigen::Matrix4d> directKinematics(
     const Eigen::Matrix<double, 6, 1>& joints);
 
-Eigen::Matrix<double, 8, 1> getJointConfiguration();
+std::tuple<Eigen::Matrix<double, 6, 1>, Eigen::Matrix<double, 8, 1>> getJointConfiguration();
+Eigen::Matrix<double, 6, 1> getJointState(const Eigen::Matrix<double, 8, 1>& jointConfiguration);
 
 Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point);
 constexpr const Eigen::Matrix4d worldToBaseTransformationMatrix();
 
+void insertTrajectory(Trajectory& trajectory, const Eigen::Vector3d& point);
 void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguration);
 void insertPath(Path& path, const Path& pathToInsert);
 
 double distanceBetweenPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2);
 MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle();
-Trajectory computeTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
-Path moveRobot(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix);
+Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
+
+Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
+               const Eigen::Matrix3d& finalRotationMatrix, const double maxTime = TOTAL_TIME);
+Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
+               const Eigen::Quaterniond& finalQuaternion, const double maxTime = TOTAL_TIME);
 
 double calculateDeterminantJJT(const Eigen::Matrix<double, 6, 6>& jacobian);
 double calculateDampingFactor(double w, double wt, double lambda0);
@@ -55,7 +61,7 @@ Eigen::Matrix<double, 6, 6> calculateDampedPseudoInverse(const Eigen::Matrix<dou
 Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
                                       const Eigen::Vector3d& initialPosition,
                                       const Eigen::Quaterniond& initialQuaternion, const Eigen::Vector3d& finalPosition,
-                                      const Eigen::Quaterniond& finalQuaternion);
+                                      const Eigen::Quaterniond& finalQuaternion, const double maxTime);
 
 Eigen::Matrix<double, 6, 1> computeQdot0(const Eigen::Matrix<double, 6, 1>& jointsState);
 
