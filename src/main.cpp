@@ -25,9 +25,47 @@ int main(int argc, char **argv) {
    ros::Publisher pub =
        node_handler.advertise<std_msgs::Float64MultiArray>("/ur5/joint_group_pos_controller/command", 10);
    Path movements;
+   Eigen::Vector3d world_point;
+   Eigen::Quaterniond world_orientation;
+   std::string block_id;
+   int n_blocks = N_BLOCKS;
 
+   Eigen::Matrix<double, 3, 3> world_points{{0.218, 0.649, 1.170}, {0.636, 0.5, 1.109}, {0.326, 0.307, 1.170}};
+   n_blocks = world_points.rows();
+   Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
+   Eigen::Quaterniond rotation_quaternion(rotation_matrix);
+   world_orientation = rotation_quaternion;
    // for-each block, move
-   for (int i = 0; i < N_BLOCKS; i++) {
+   for (int i = 0; i < n_blocks; i++) {
+      // when the vision module is ready, uncomment this block
+      // if (vision_client.call(vision_srv)) {
+      //    world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
+      //        vision_srv.response.poses[i].position.z;
+      //    world_orientation =
+      //        Eigen::Quaterniond(vision_srv.response.poses[i].orientation.w,
+      //        vision_srv.response.poses[i].orientation.x,
+      //                           vision_srv.response.poses[i].orientation.y,
+      //                           vision_srv.response.poses[i].orientation.z);
+      //    block_id = vision_srv.response.blocks_id[i];
+      //    n_blocks = vision_srv.response.n_blocks;
+      //    std::cout << "MAIN Process: Transmitting block " << block_id << " | block " << i << std::endl;
+      // } else {
+      //    std::cerr << "MAIN Process: Failed to call the VISION module | block " << i << std::endl;
+      //    continue;
+      // }
+      //////////////////////////////////
+
+      // when the vision module is ready, comment this block
+      world_point = world_points.row(i);
+      //////////////////////////////////
+
+      srv.request.pose.position.x = world_point[0];
+      srv.request.pose.position.y = world_point[1];
+      srv.request.pose.position.z = world_point[2];
+      srv.request.pose.orientation.x = world_orientation.x();
+      srv.request.pose.orientation.y = world_orientation.y();
+      srv.request.pose.orientation.z = world_orientation.z();
+      srv.request.pose.orientation.w = world_orientation.w();
       /* Import the required movements from the module */
       if (service_client.call(srv)) {
          movements = get_movements(srv.response);

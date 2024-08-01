@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
 )
 
 find_package(Eigen3 REQUIRED)
@@ -53,6 +54,7 @@ catkin_python_setup()
 add_message_files(
   FILES
   Path.msg
+  Pose.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -73,6 +75,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
 )
 
 ################################################

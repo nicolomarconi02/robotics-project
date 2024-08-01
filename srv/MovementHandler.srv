@@ -1,2 +1,4 @@
+geometry_msgs/Pose pose
+string block_id
 ---
 Path path
