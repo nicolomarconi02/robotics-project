@@ -61,9 +61,17 @@ Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &br
    }
    ROS_INFO("FINISH move to brick standard height");
 
+   // OPEN GRIPPER
+   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), brickPositionStdHeight,
+                              brickOrientation));
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
-   auto jointConfiguration_BRICKSTDHEIGHT = path.row(path.rows() - 1);
-   insertPath(path, moveRobot(jointConfiguration_BRICKSTDHEIGHT, brickPosition, brickOrientation));
+   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, brickOrientation));
+   // CLOSE GRIPPER
+   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE), brickPosition,
+                              brickOrientation));
+
+   // MOVEMENT FROM BRICK POSITION TO BRICK STANDARD HEIGHT POSITION
+   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, brickOrientation));
    ROS_INFO("FINISH moveRobot");
 
    Eigen::Matrix<double, 8, 1> joint_configuration = path.row(path.rows() - 1);

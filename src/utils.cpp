@@ -275,6 +275,28 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    return trajectory;
 }
 
+Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
+                                          const GripperState& state) {
+   Eigen::Matrix<double, 8, 1> jointConfigurationCopy = jointConfiguration;
+   switch (state) {
+      case GripperState_::CLOSE:
+         ROS_INFO("CLOSING GRIPPER");
+         jointConfigurationCopy(6) = -0.5;
+         jointConfigurationCopy(7) = -0.5;
+         break;
+      case GripperState_::OPEN:
+         ROS_INFO("OPENING GRIPPER");
+         jointConfigurationCopy(6) = 1.2;
+         jointConfigurationCopy(7) = 1.2;
+         break;
+      default:
+         ROS_WARN("UNKNOWN GRIPPER STATE");
+         break;
+   }
+
+   return jointConfigurationCopy;
+}
+
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
                const Eigen::Matrix3d& finalRotationMatrix, const double maxTime) {
    auto jointState = getJointState(jointConfiguration);

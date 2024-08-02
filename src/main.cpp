@@ -30,7 +30,9 @@ int main(int argc, char **argv) {
    std::string block_id;
    int n_blocks = N_BLOCKS;
 
-   Eigen::Matrix<double, 3, 3> world_points{{0.218, 0.649, 1.170}, {0.636, 0.5, 1.109}, {0.326, 0.307, 1.170}};
+   Eigen::Matrix<double, 9, 3> world_points{{1.0, 0.8, 1.025},     {1.0, 0.15, 1.225},     {0.0, 0.15, 1.225},
+                                            {0.0, 0.8, 1.025},     {-0.001, 0.055, 1.225}, {0.549, 0.089, 1.225},
+                                            {0.218, 0.649, 1.070}, {0.636, 0.5, 1.009},    {0.326, 0.307, 1.070}};
    n_blocks = world_points.rows();
    Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
    Eigen::Quaterniond rotation_quaternion(rotation_matrix);

@@ -9,7 +9,7 @@
 #define TIME_STEP 0.1
 #define N_SEGMENTS 40
 #define STD_HEIGHT 0.5
-#define RADIUS_CIRCLE 0.5
+#define RADIUS_CIRCLE 0.4
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
@@ -24,6 +24,9 @@ const Eigen::Matrix<double, 6, 1> alpha_DH(M_PI / 2, 0, 0, M_PI / 2, -M_PI / 2, 
 
 typedef int MovementDirection;
 enum MovementDirection_ { NONE = 0, CLOCKWISE = 1, COUNTERCLOCKWISE = 2 };
+
+typedef int GripperState;
+enum GripperState_ { CLOSE = 0, OPEN = 1 };
 
 Eigen::Vector3d lerp(const Eigen::Vector3d& start, const Eigen::Vector3d& end, double t);
 Eigen::Quaterniond slerp(const Eigen::Quaterniond& start, const Eigen::Quaterniond& end, double t);
@@ -49,6 +52,7 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle();
 Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
 
+Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const GripperState& state);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
                const Eigen::Matrix3d& finalRotationMatrix, const double maxTime = TOTAL_TIME);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
