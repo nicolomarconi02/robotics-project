@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 
    /* Define service server */
    ros::NodeHandle n;
-   ros::ServiceServer service = n.advertiseService("movement_handler", mov_handler);
+   ros::ServiceServer service = n.advertiseService("movement_handler", movHandler);
    // and start it
    ros::spin();
 
@@ -22,21 +22,29 @@ int main(int argc, char **argv) {
 }
 
 /* Service function */
-bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res) {
+bool movHandler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res) {
    std::cout << "MOVEMENT HANDLER Process: Service CALLED" << std::endl;
 
    Eigen::Vector3d brickPosition(req.pose.position.x, req.pose.position.y, req.pose.position.z);
-   Eigen::Quaterniond rotation_quaternion(req.pose.orientation.w, req.pose.orientation.x, req.pose.orientation.y,
-                                          req.pose.orientation.z);
+   Eigen::Quaterniond rotationQuaternion(req.pose.orientation.w, req.pose.orientation.x, req.pose.orientation.y,
+                                         req.pose.orientation.z);
    brickPosition = worldToBaseCoordinates(brickPosition);
-   Path movements = get_path(brickPosition, rotation_quaternion);
+   std::string blockId = req.block_id;
+   Path movements = getPath(brickPosition, rotationQuaternion, blockId);
 
-   res = get_response(movements);
+   res = getResponse(movements);
 
    return true;
 }
 
-Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation) {
+Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation,
+             const std::string &blockId) {
+   Eigen::Vector3d finalPosition = getFinalPosition(blockId);
+   if (finalPosition == Eigen::Vector3d::Zero()) {
+      ROS_ERROR("UNKNOWN BLOCK ID");
+      ROS_ERROR("STOPPING MOVEMENT");
+      return Path();
+   }
    ROS_INFO("BEGIN moveRobot");
    // MOVEMENT FROM INITIAL POSITION TO INITIAL STANDARD HEIGHT POSITION
    auto [jointState0, jointConfiguration0] = getJointConfiguration();
@@ -52,31 +60,59 @@ Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &br
    ROS_INFO("FINISH move to initial standard height");
 
    // MOVEMENT FROM INITIAL STANDARD HEIGHT POSITION TO BRICK STANDARD HEIGHT POSITION
-   Trajectory trajectory = computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight);
-   std::cout << "trajectory: " << std::endl;
-   std::cout << trajectory << std::endl;
-   for (int i = 0; i < trajectory.rows(); i++) {
+   Trajectory trajectoryInitialToBrick = computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight);
+   std::cout << "trajectoryInitialToBrick: " << std::endl;
+   std::cout << trajectoryInitialToBrick << std::endl;
+   for (int i = 0; i < trajectoryInitialToBrick.rows(); i++) {
       auto jointConfiguration_i = path.row(path.rows() - 1);
-      insertPath(path, moveRobot(jointConfiguration_i, trajectory.row(i), Re, 1.0));
+      insertPath(path, moveRobot(jointConfiguration_i, trajectoryInitialToBrick.row(i), Re, 1.0));
    }
    ROS_INFO("FINISH move to brick standard height");
-
    // OPEN GRIPPER
-   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), brickPositionStdHeight,
-                              brickOrientation));
+   insertPath(path,
+              moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), brickPositionStdHeight, Re));
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
-   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, brickOrientation));
+   double graspingAngle = brickOrientation.z() + M_PI / 2;
+   Eigen::Matrix3d graspingRotationMatrix = rotationMatrixAroundZ(graspingAngle);
+   Eigen::Quaterniond graspingOrientation(graspingRotationMatrix);
+   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, graspingOrientation));
    // CLOSE GRIPPER
    insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE), brickPosition,
-                              brickOrientation));
+                              graspingOrientation));
 
    // MOVEMENT FROM BRICK POSITION TO BRICK STANDARD HEIGHT POSITION
-   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, brickOrientation));
+   insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, graspingOrientation));
+
+   // COMPUTE FINAL POSITION
+   Eigen::Vector3d finalPositionStdHeight(finalPosition(0), finalPosition(1), STD_HEIGHT);
+   Eigen::Matrix3d finalRe{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
+   Eigen::Quaterniond finalRotationQuaternion(finalRe);
+
+   std::cout << "finalPosition: " << finalPosition.transpose() << std::endl;
+   std::cout << "finalPositionStdHeight: " << finalPositionStdHeight.transpose() << std::endl;
+
+   // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO FINAL STANDARD HEIGHT POSITION
+   Trajectory trajectoryBrickToFinal = computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight);
+   std::cout << "trajectoryBrickToFinal: " << std::endl;
+   std::cout << trajectoryBrickToFinal << std::endl;
+   for (int i = 0; i < trajectoryBrickToFinal.rows(); i++) {
+      auto jointConfiguration_i = path.row(path.rows() - 1);
+      insertPath(path, moveRobot(jointConfiguration_i, trajectoryBrickToFinal.row(i), Re, 1.0));
+   }
+   ROS_INFO("FINISH move to final standard height");
+
+   // MOVEMENT FROM FINAL STANDARD HEIGHT POSITION TO FINAL POSITION
+   insertPath(path, moveRobot(path.row(path.rows() - 1), finalPosition, finalRotationQuaternion));
+
+   // OPEN GRIPPER
+   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), finalPositionStdHeight,
+                              finalRotationQuaternion));
    ROS_INFO("FINISH moveRobot");
 
-   Eigen::Matrix<double, 8, 1> joint_configuration = path.row(path.rows() - 1);
-   Eigen::Matrix<double, 6, 1> joint{joint_configuration(0), joint_configuration(1), joint_configuration(2),
-                                     joint_configuration(3), joint_configuration(4), joint_configuration(5)};
+   // THIS IS ONLY FOR DEBUGGING
+   Eigen::Matrix<double, 8, 1> jointConfiguration = path.row(path.rows() - 1);
+   Eigen::Matrix<double, 6, 1> joint{jointConfiguration(0), jointConfiguration(1), jointConfiguration(2),
+                                     jointConfiguration(3), jointConfiguration(4), jointConfiguration(5)};
 
    const auto &[peFinal, ReFinal, transformation_matrixFinal] = directKinematics(joint);
 
@@ -91,12 +127,12 @@ Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &br
    for (auto val : peFinal) {
       std::cout << val << " ";
    }
-
-   ROS_INFO("END get_path");
+   //////////////////////////////////////
+   ROS_INFO("END getPath");
    return path;
 }
 
-robotics_project::MovementHandler::Response get_response(Path movements) {
+robotics_project::MovementHandler::Response getResponse(Path movements) {
    robotics_project::MovementHandler::Response res;
    res.path.movements.resize(movements.rows());
 

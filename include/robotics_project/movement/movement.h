@@ -8,11 +8,12 @@
 #define N_MOVEMENTS 5
 // This is a dummy data for simulations of a functioning MOVEMENT HANDLER module
 
-bool mov_handler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res);
+bool movHandler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res);
 
-Path get_path(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation);
+Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation,
+             const std::string &blockId);
 
 /* Interactions with main */
-robotics_project::MovementHandler::Response get_response(Path movements);
+robotics_project::MovementHandler::Response getResponse(Path movements);
 
 #endif

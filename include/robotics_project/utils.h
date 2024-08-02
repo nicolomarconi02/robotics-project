@@ -5,11 +5,23 @@
 
 #include "Eigen/Dense"
 
+#define X1_Y1_Z2_ "X1-Y1-Z2"
+#define X1_Y2_Z1_ "X1-Y2-Z1"
+#define X1_Y2_Z2_ "X1-Y2-Z2"
+#define X1_Y2_Z2_CHAMFER_ "X1-Y2-Z2-CHAMFER"
+#define X1_Y2_Z2_TWINFILLET_ "X1-Y2-Z2-TWINFILLET"
+#define X1_Y3_Z2_ "X1-Y3-Z2"
+#define X1_Y3_Z2_FILLET_ "X1-Y3-Z2-FILLET"
+#define X1_Y4_Z1_ "X1-Y4-Z1"
+#define X1_Y4_Z2_ "X1-Y4-Z2"
+#define X2_Y2_Z2_ "X2-Y2-Z2"
+#define X2_Y2_Z2_FILLET_ "X2-Y2-Z2-FILLET"
+
 #define TOTAL_TIME 10.0
 #define TIME_STEP 0.1
 #define N_SEGMENTS 40
 #define STD_HEIGHT 0.5
-#define RADIUS_CIRCLE 0.4
+#define RADIUS_CIRCLE 0.35
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
@@ -28,9 +40,26 @@ enum MovementDirection_ { NONE = 0, CLOCKWISE = 1, COUNTERCLOCKWISE = 2 };
 typedef int GripperState;
 enum GripperState_ { CLOSE = 0, OPEN = 1 };
 
+typedef int BlockId;
+enum BlockId_ {
+   X1_Y1_Z2,
+   X1_Y2_Z1,
+   X1_Y2_Z2,
+   X1_Y2_Z2_CHAMFER,
+   X1_Y2_Z2_TWINFILLET,
+   X1_Y3_Z2,
+   X1_Y3_Z2_FILLET,
+   X1_Y4_Z1,
+   X1_Y4_Z2,
+   X2_Y2_Z2,
+   X2_Y2_Z2_FILLET,
+   LENGTH
+};
+
 Eigen::Vector3d lerp(const Eigen::Vector3d& start, const Eigen::Vector3d& end, double t);
 Eigen::Quaterniond slerp(const Eigen::Quaterniond& start, const Eigen::Quaterniond& end, double t);
 Eigen::Matrix4d generalTransformationMatrix(double theta, double alpha, double d, double a);
+Eigen::Matrix3d rotationMatrixAroundZ(double theta);
 
 Eigen::Matrix<double, 6, 6> getJacobian(const Eigen::Matrix<double, 6, 1>& joints);
 
@@ -42,6 +71,8 @@ Eigen::Matrix<double, 6, 1> getJointState(const Eigen::Matrix<double, 8, 1>& joi
 
 Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point);
 constexpr const Eigen::Matrix4d worldToBaseTransformationMatrix();
+BlockId getBlockId(const std::string& blockId);
+Eigen::Vector3d getFinalPosition(const std::string& blockId);
 
 void insertTrajectory(Trajectory& trajectory, const Eigen::Vector3d& point);
 void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguration);
@@ -52,7 +83,8 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle();
 Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
 
-Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const GripperState& state);
+Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
+                                          const GripperState& state);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
                const Eigen::Matrix3d& finalRotationMatrix, const double maxTime = TOTAL_TIME);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,

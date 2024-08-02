@@ -21,7 +21,9 @@ Eigen::Matrix4d generalTransformationMatrix(double theta, double alpha, double d
                           {0, sin(alpha), cos(alpha), d},
                           {0, 0, 0, 1}};
 }
-
+Eigen::Matrix3d rotationMatrixAroundZ(double theta) {
+   return Eigen::Matrix3d{{cos(theta), -sin(theta), 0}, {sin(theta), cos(theta), 0}, {0, 0, 1}};
+}
 Eigen::Matrix<double, 6, 6> getJacobian(const Eigen::Matrix<double, 6, 1>& joints) {
    Eigen::Matrix<double, 6, 6> jacobian;
    jacobian.setZero();
@@ -141,6 +143,46 @@ Eigen::Vector3d worldToBaseCoordinates(const Eigen::Vector3d& point) {
 
    Eigen::Vector4d tmpPoint = transformationMatrix.inverse() * Eigen::Vector4d{point(0), point(1), point(2), 1.0};
    return Eigen::Vector3d{tmpPoint(0), tmpPoint(1), tmpPoint(2)};
+}
+
+BlockId getBlockId(const std::string& blockId) {
+   if (blockId == X1_Y1_Z2_) {
+      return BlockId_::X1_Y1_Z2;
+   } else if (blockId == X1_Y2_Z1_) {
+      return BlockId_::X1_Y2_Z1;
+   } else if (blockId == X1_Y2_Z2_) {
+      return BlockId_::X1_Y2_Z2;
+   } else if (blockId == X1_Y2_Z2_CHAMFER_) {
+      return BlockId_::X1_Y2_Z2_CHAMFER;
+   } else if (blockId == X1_Y2_Z2_TWINFILLET_) {
+      return BlockId_::X1_Y2_Z2_TWINFILLET;
+   } else if (blockId == X1_Y3_Z2_) {
+      return BlockId_::X1_Y3_Z2;
+   } else if (blockId == X1_Y3_Z2_FILLET_) {
+      return BlockId_::X1_Y3_Z2_FILLET;
+   } else if (blockId == X1_Y4_Z1_) {
+      return BlockId_::X1_Y4_Z1;
+   } else if (blockId == X1_Y4_Z2_) {
+      return BlockId_::X1_Y4_Z2;
+   } else if (blockId == X2_Y2_Z2_) {
+      return BlockId_::X2_Y2_Z2;
+   } else if (blockId == X2_Y2_Z2_FILLET_) {
+      return BlockId_::X2_Y2_Z2_FILLET;
+   }
+   return BlockId_::LENGTH;
+}
+Eigen::Vector3d getFinalPosition(const std::string& blockId) {
+   BlockId block = getBlockId(blockId);
+   if (block == BlockId_::LENGTH) {
+      return Eigen::Vector3d{0.0, 0.0, 0.0};
+   }
+   Eigen::Vector2d planeSize{1.0, 0.15};
+   Eigen::Vector2d dropRegionSize{planeSize(0) / (double)BlockId_::LENGTH, planeSize(1)};
+   double xPos = dropRegionSize(0) * (double)block + dropRegionSize(0) / 2.0;
+   double yPos = dropRegionSize(1) / 2.0;
+   double zPos = 1.155;
+   Eigen::Vector3d finalPosition{xPos, yPos, zPos};
+   return worldToBaseCoordinates(finalPosition);
 }
 
 void insertTrajectory(Trajectory& trajectory, const Eigen::Vector3d& point) {
@@ -286,8 +328,8 @@ Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& joi
          break;
       case GripperState_::OPEN:
          ROS_INFO("OPENING GRIPPER");
-         jointConfigurationCopy(6) = 1.2;
-         jointConfigurationCopy(7) = 1.2;
+         jointConfigurationCopy(6) = 1.5;
+         jointConfigurationCopy(7) = 1.5;
          break;
       default:
          ROS_WARN("UNKNOWN GRIPPER STATE");
@@ -326,6 +368,7 @@ double calculateDeterminantJJT(const Eigen::Matrix<double, 6, 6>& jacobian) {
 
 double calculateDampingFactor(double w, double wt, double lambda0) {
    if (w < wt) {
+      ROS_INFO("DAMPING %f", (lambda0 * std::pow(1.0 - (w / wt), 2)));
       return lambda0 * std::pow(1.0 - (w / wt), 2);
    } else {
       ROS_INFO("NO DAMPING");
@@ -370,10 +413,11 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
 
       jacobian_instantK = getJacobian(jointState_instantK);
-      static double lambda0 = 0.001;
-      static double wt = 0.022;
+      static double lambda0 = 1.0e-5;
+      static double wt = 0.22;
       double w = calculateDeterminantJJT(jacobian_instantK);
       double lambda = calculateDampingFactor(w, wt, lambda0);
+      // double lambda = 1.0e-5;
       pseudoInverseJacobian_instantK = calculateDampedPseudoInverse(jacobian_instantK, lambda);
       if (abs(jacobian_instantK.determinant()) < 1.0e-5) {
          ROS_WARN("NEAR SINGULARITY");
@@ -391,6 +435,7 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       jointStateDot_instantK =
           pseudoInverseJacobian_instantK * velocities_instantK +
           (Eigen::Matrix<double, 6, 6>::Identity() - pseudoInverseJacobian_instantK * jacobian_instantK) * qdot0;
+      // jointStateDot_instantK = pseudoInverseJacobian_instantK * velocities_instantK;
       jointState_instantK += jointStateDot_instantK * TIME_STEP;
       Eigen::Matrix<double, 8, 1> path_instantK;
       path_instantK << jointState_instantK, gripperState;

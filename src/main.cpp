@@ -37,6 +37,9 @@ int main(int argc, char **argv) {
    Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
    Eigen::Quaterniond rotation_quaternion(rotation_matrix);
    world_orientation = rotation_quaternion;
+   std::vector<std::string> blocks_id{
+       "X1-Y1-Z2", "X1-Y2-Z1",        "X1-Y2-Z2", "X1-Y2-Z2-CHAMFER", "X1-Y2-Z2-TWINFILLET",
+       "X1-Y3-Z2", "X1-Y3-Z2-FILLET", "X1-Y4-Z1", "X1-Y4-Z2"};
    // for-each block, move
    for (int i = 0; i < n_blocks; i++) {
       // when the vision module is ready, uncomment this block
@@ -59,6 +62,7 @@ int main(int argc, char **argv) {
 
       // when the vision module is ready, comment this block
       world_point = world_points.row(i);
+      block_id = blocks_id[i];
       //////////////////////////////////
 
       srv.request.pose.position.x = world_point[0];
@@ -68,10 +72,14 @@ int main(int argc, char **argv) {
       srv.request.pose.orientation.y = world_orientation.y();
       srv.request.pose.orientation.z = world_orientation.z();
       srv.request.pose.orientation.w = world_orientation.w();
+      srv.request.block_id = block_id;
       /* Import the required movements from the module */
       if (service_client.call(srv)) {
          movements = get_movements(srv.response);
-
+         if (movements.rows() <= 0) {
+            std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+            continue;
+         }
          std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
          move(pub, movements);
       } else {
