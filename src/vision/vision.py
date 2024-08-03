@@ -63,11 +63,11 @@ class VisionManagerClass():
         self.manage_cloud = Manage_Point_Cloud()
         
         # Image from ZED Node
-        self.image_msg = ros.wait_for_message("/ur5/zed_node/left_raw/image_raw_color", Image)
+        self.image_msg = ros.wait_for_message("/ur5/zed_node/left/image_rect_color", Image)
 
         # Point cloud from ZED Node
         self.point_cloud2_msg = ros.wait_for_message("/ur5/zed_node/point_cloud/cloud_registered", PointCloud2)
-
+        
         # Make use of the image obtained
         self.digest_ZED_data(self.image_msg, self.point_cloud2_msg)
 
