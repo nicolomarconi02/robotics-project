@@ -3,13 +3,18 @@ from gazebo_msgs.srv import SpawnModel
 from geometry_msgs.msg import Pose
 import math
 import os
-import uuid
 import random
+from block import Block
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 
 class Spawner():
     # static attribute
     colors=['Red', 'Green', 'Blue', 'Yellow', 'Purple', 'Orange', 'Indigo', 'Turquoise']
+    MAX_SPAWNS = 100000
+    MARGIN=0.05
 
     def __init__(self, robot_name="ur5", models_path="models"):
         self.robot_name = robot_name
@@ -33,34 +38,70 @@ class Spawner():
         sdf_file = open(f'{self.models_path}/{model}/model.sdf','r')
         return sdf_file.read()
 
-    def spawn_block(self, model, x, y, z, angle, color="Grey"):
-        pose = Pose()
-        
-        # position
-        pose.position.x = x
-        pose.position.y = y
-        pose.position.z = z
+    def spawn_block(self, block : Block):
+        self.spawn_content(block.pose, block.model, block.color)
 
-        # quaternion
-        pose.orientation.w = math.cos(angle/2)
-        pose.orientation.x = 0.0
-        pose.orientation.y = 0.0
-        pose.orientation.z = math.sin(angle/2)
-
-        self.spawn_content(pose, model, color)
-
-    def spawn_blocks(self):
+    def spawn_blocks(self, plot=False):
         models = os.listdir(self.models_path)
+        final_blocks = []
+        margins = []
 
         for idx, model in enumerate(models):
-            self.spawn_block(
-                model=model,
-                x=random.uniform(0.15, 0.85), 
-                y=random.uniform(0.3, 0.7), 
-                z=random.uniform(0.9, 1),
-                angle=random.uniform(0, 1),
-                color=self.colors[idx%len(self.colors)]
-            )
+            collision = True
+            generated = 0
+            
+            while collision and generated < Spawner.MAX_SPAWNS:
+                block = Block(
+                    model=model,
+                    x=random.uniform(0.15, 0.85), 
+                    y=random.uniform(0.3, 0.7), 
+                    z=0.9,
+                    angle=math.radians(random.uniform(0, 360)),
+                    color=self.colors[idx%len(self.colors)]
+                )
+
+                # same block with 0.02 margin, in order to distanciate blocks
+                blockMargin = Block(
+                    model=model,
+                    x=block.x,
+                    y=block.y,
+                    z=0.9,
+                    angle=block.angle,
+                    color=block.color,
+                    margin=Spawner.MARGIN
+                )
+                i=0
+                for fblock in final_blocks:
+                    if fblock.collides(blockMargin):
+                        generated = generated+1
+                        break
+                    i = i+1
+                if i == len(final_blocks):
+                    collision = False
+                    final_blocks.append(block)
+                    margins.append(blockMargin)
+                    self.spawn_block(block)
+
+
+
+        if plot:
+            #define Matplotlib figure and axis
+            fig, ax = plt.subplots()
+
+            #add rectangle to plot
+            for a in final_blocks:
+                ax.add_patch(Rectangle((a.x, a.y), a.width, a.height, 
+                                angle=a.angle,
+                                edgecolor='red',
+                                facecolor='none'))
+            for b in margins:
+                ax.add_patch(Rectangle((b.x, b.y), b.width, b.height, 
+                                angle=b.angle,
+                                edgecolor='blue',
+                                facecolor='none'))
+
+            #display plot
+            plt.show()
 
 
 def main():
