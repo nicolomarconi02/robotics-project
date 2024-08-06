@@ -3,36 +3,55 @@ from gazebo_msgs.srv import SpawnModel
 from geometry_msgs.msg import Pose
 import math
 import os
+import sys
 import random
 from block import Block
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+
+
+@dataclass
+class Range:
+    min: float
+    max: float
+
+@dataclass
+class TableLimits:
+    x: Range
+    y: Range
+    angle: Range
 
 class Spawner():
     # static attribute
     colors=['Red', 'Green', 'Blue', 'Yellow', 'Purple', 'Orange', 'Indigo', 'Turquoise']
     MAX_SPAWNS = 100000
     MARGIN=0.05
+    LIMITS=TableLimits(
+        Range(0.15, 0.85),
+        Range(0.3, 0.7),
+        Range(0, 360)
+        )
 
     def __init__(self, robot_name="ur5", models_path="models"):
         self.robot_name = robot_name
         self.models_path=models_path
 
+        # link ros service
+        ros.init_node('spawner')
+        ros.wait_for_service('gazebo/spawn_sdf_model')
+        self.spawn_model = ros.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
+
         # in each instance of spawner the static attribute gets shuffled
         random.shuffle(self.colors)
-        ros.init_node('spawner')
 
     def spawn_content(self, pose : Pose, model, color="Grey"):
         sdf = self.get_model_sdf(model)
         sdf = sdf.replace('Gazebo/Grey', f'Gazebo/{color}')
 
-        ros.wait_for_service('gazebo/spawn_sdf_model')
-        
-        spawn_model = ros.ServiceProxy('gazebo/spawn_sdf_model', SpawnModel)
-        
-        spawn_model(model, sdf, self.robot_name, pose, "world")
+        self.spawn_model(model, sdf, self.robot_name, pose, "world")
 
     def get_model_sdf(self, model):
         sdf_file = open(f'{self.models_path}/{model}/model.sdf','r')
@@ -49,15 +68,16 @@ class Spawner():
         for idx, model in enumerate(models):
             collision = True
             generated = 0
+            selected_color=self.colors[idx%len(self.colors)]
             
             while collision and generated < Spawner.MAX_SPAWNS:
                 block = Block(
                     model=model,
-                    x=random.uniform(0.15, 0.85), 
-                    y=random.uniform(0.3, 0.7), 
+                    x=random.uniform(Spawner.LIMITS.x.min, Spawner.LIMITS.x.max), 
+                    y=random.uniform(Spawner.LIMITS.y.min, Spawner.LIMITS.y.max), 
                     z=0.9,
-                    angle=math.radians(random.uniform(0, 360)),
-                    color=self.colors[idx%len(self.colors)]
+                    angle=math.radians(random.uniform(Spawner.LIMITS.angle.min, Spawner.LIMITS.angle.max)),
+                    color=selected_color
                 )
 
                 # same block with 0.02 margin, in order to distanciate blocks
@@ -107,8 +127,11 @@ class Spawner():
 def main():
     print('SPAWNER PROCESS: STARTED')
 
+    # check plot in program's arguments
+    plot="plot" in sys.argv[1:]
+
     spawner = Spawner()
-    spawner.spawn_blocks()
+    spawner.spawn_blocks(plot)
 
     print('SPAWNER PROCESS: ENDED')
 
