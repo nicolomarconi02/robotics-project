@@ -33,6 +33,7 @@ ROTATIONAL_MATRIX_INV = np.transpose(ROTATIONAL_MATRIX)
 ZED_WRT_WORLD = np.array([-0.4 ,  0.59,  1.4 ])
 
 ## constants for object detection with YoloV8
+MODEL = "dependencies/robotics_project_vision/best.pt"
 ERROR_ON_Y = 30             # error found empirically. The predictor translate of 25 pixel the y coordinates of the bbox
 
 ## constants for managing point cloud
@@ -40,27 +41,42 @@ BLOCK_LEVEL = 0.875         # z value for which we are sure to not intersect wit
 ERROR_Z = 3                 # meaning min_value -> 0.001
 PLOTH_GRAPHS = True
 
+DEBUG = True
 
+
+# move to repo
+from sklearn.cluster import DBSCAN
+# pip install numpy matplotlib scipy scikit-learn
 class Manage_Point_Cloud():
-    def __init__(self):
-        pass
-        
-    def extract_data(self, point_cloud2_msg : PointCloud2):
-        self.point_cloud2_msg = point_cloud2_msg
+    def __init__(self, rotational_matrix, zed_wrt_world):
+        self.point_cloud2_msg = None
+
+        self.rotational_matrix = rotational_matrix
+        self.zed_wrt_world = zed_wrt_world
     
-    def read_cloud(self, pc2, points_2d):
-        points_3d = []
-        for data in point_cloud2.read_points(pc2, field_names=['x','y','z'], skip_nans=False, uvs=points_2d):
-            points_3d.append([data[0], data[1], data[2]])
-        return points_3d
+    def extract_point_world(self, points_2d, dim):
+
+        points_3d_world = []
+        for data in point_cloud2.read_points(self.point_cloud2_msg, field_names=['x','y','z'], skip_nans=True, uvs=points_2d):
+
+            # Trasforming the point in world frame
+            point = self.rotational_matrix.dot(data) + self.zed_wrt_world
+
+            if dim == 2 :
+                point = np.array(point[:2])
+            elif dim == 3:
+                point = np.array(point)
+            points_3d_world.append(point)
+
+        return points_3d_world
 
 class VisionManagerClass():
 
     def __init__(self, robot_name="ur5"):
         ros.init_node('vision')
 
-        self.predictor = vision.Object_Detection(model="dependencies/robotics_project_vision/best.pt")
-        self.manage_cloud = Manage_Point_Cloud()
+        self.predictor = vision.Object_Detection(model=MODEL)
+        self.manage_cloud = Manage_Point_Cloud(rotational_matrix=ROTATIONAL_MATRIX, zed_wrt_world=ZED_WRT_WORLD)
         
         # Image from ZED Node
         self.image_msg = ros.wait_for_message("/ur5/zed_node/left/image_rect_color", Image)
@@ -101,131 +117,50 @@ class VisionManagerClass():
         #print(imgName)
         cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
-        #############################################################
-        #### DA QUI NON RICHIAMO PIù FUNZIONI, E' CODICE DIRETTO ####
-        #############################################################
 
-        """
-        obj = 1
-        for prediction in predicted_objects:
 
-            subdir = f"obj{obj}"
-            prediction_sub_path = prediction_path + "/" + subdir + "/"
-            os.mkdir(prediction_sub_path)
+        ################ POINT CLOUD ################
 
-            x1 = math.floor(prediction[0])
-            y1 = math.floor(prediction[1]) 
-            x2 = math.floor(prediction[2])
-            y2 = math.floor(prediction[3]) 
-            confidence = prediction[4]
-            obj_class = int(prediction[5])
-            obj_name = prediction[6]
-
-            # iteration over all the area of interest, getting 2D points
-            obj_points_2d = []
-            for i in range(x1,x2):
-                for j in range(y1,y2):
-                    obj_points_2d.append((i,j)) 
-            
-            # getting 3D points from point cloud
-            obj_points_3d = self.manage_cloud.read_cloud(pc2, obj_points_2d)
-            print(len(obj_points_3d))
-
-            # trasforming each point in world frame
-            obj_points_world = []
-            dictionary = {}
-            for point in obj_points_3d:
-                point = ROTATIONAL_MATRIX.dot(point) + ZED_WRT_WORLD
-                point = np.array(point)
-                obj_points_world.append(point)
-
-                # creating a dictionary to filter over z-value
-                z = round(point[2],ERROR_Z)
-                if z in dictionary:
-                    tmp = dictionary[z]
-                    tmp.append(point[:2])
-                    dictionary[z] = tmp
-                else:
-                    dictionary[z] = [point[:2]]
-
-            ## plot 3D graph of the block
-            plot_points.plot_3D_graph(np.array(obj_points_world), f"3D_representation", prediction_sub_path, open_preview=False)
-
-            # slice of the graph with z=BLOCK_LEVEL
-            block_border = np.array(dictionary[BLOCK_LEVEL])
-
-            # filter the section block_border, getting the three vertexes
-            point_min_x = block_border[:,0].argmin()
-            point_max_x = block_border[:,0].argmax()
-            point_min_y = block_border[:,1].argmin()
-
-            plot_points.plot_2D_graph(np.array(block_border), "borders", prediction_sub_path)
-
-            obj += 1
-        
-        ##print dictionary
-        #count=0
-        #for key, value in dictionary.items():
-        #    print(f'{key}: {value}') 
-
-        """
-
-        #IDEA: 
-        # - leggo tutta la point cloud relativa all'area contenente il piano di lavoroe
-        # - creao un dizionario con chiave i valori di z (approssimati a 3 numeri dopo la virgola)
-        # - "taglio" la point cloud a una data altezza al fine di evitare di considerare i punti del piano di lavoro ma non troppo alta per beccare anche i blocchi di altezza 0.31
-        
-        print("Starting process of zed points")
         import time
         start_time = time.time()
 
         pointCloud_path = f"predictions/{imgName}/pointCloud"
         os.makedirs(pointCloud_path)
 
-        #the following values are taken as pixels from an image taken from zed-camera
+        # Save PointCloud in Manage_Point_Cloud instance
+        self.manage_cloud.point_cloud2_msg = pc2
+
+        # Get point-cloud restricteed to working table. Note that the following values
+        # are empirically found; they are the pixels from an image taken from the camera 
         x1 = 663
         x2 = 1561
-        y1 = 7 + 370
-        y2 = 549 + 370
+        y1 = 377
+        y2 = 919
         working_table_zed = []
         for i in range(x1,x2):
             for j in range(y1,y2):
                 working_table_zed.append((i,j))
 
-        points_3d_world = []
-        dictionary = {}
-        for data in point_cloud2.read_points(pc2, field_names=['x','y','z'], skip_nans=True, uvs=working_table_zed):
+        points_3d_world = self.manage_cloud.extract_point_world(working_table_zed, dim=3)
 
-            # trasforming the point in world frame
-            point = ROTATIONAL_MATRIX.dot(data) + ZED_WRT_WORLD
-            point = np.array(point)
-            points_3d_world.append(point)
-
-            if round(point[1],2)>0.15:  # avoid the higher part of the working_table
-                # creating a dictionary to filter over z-value
-                z=round(point[2],ERROR_Z)
-                if z in dictionary:
-                    tmp = dictionary[z]
+        # Creation of a dictionary containing all the point clouds of the working area,
+        # but organized with z (rounded up to 3 decimal values) as key. This allows us 
+        # to "cut" the point cloud at a given high and analyze only such points
+        dic_3d_world = {}
+        for point in points_3d_world:
+            if round(point[1],2) > 0.15:     # avoid the higher part of the working_table
+                z = round(point[2],ERROR_Z)  # rounding the z-value we get a significant one
+                if z in dic_3d_world:
+                    tmp = dic_3d_world[z]
                     tmp.append(point[:2])
-                    dictionary[z] = tmp
+                    dic_3d_world[z] = tmp
                 else:
-                    dictionary[z] = [point[:2]]
+                    dic_3d_world[z] = [point[:2]]
 
-           
-        #print(f"Number of 3d points: {len(points_3d_world)}")  
-        #print(f"Keys in dictionary: {len(dictionary)}") 
-
-        data=np.array(dictionary[BLOCK_LEVEL])
-        #0.8462959510564804
-        #0.8462960622358322
-        #0.8462960622358322
-        # -> arrotondare a 0.00001
-
-        #######################################################################
-        from sklearn.cluster import DBSCAN
-        # pip install numpy matplotlib scipy scikit-learn
-
-        # Cluster Detection (aka divide the points for each lego bricks) using DBSCAN
+        data = np.array(dic_3d_world[BLOCK_LEVEL])
+        
+        # Dividing the points into cluster (Cluster Detection), where each cluster represents
+        # a different lego brick, using DBSCAN
         clustering = DBSCAN(eps=0.04, min_samples=1).fit(data)
         labels = clustering.labels_
 
@@ -233,6 +168,7 @@ class VisionManagerClass():
             # Plot original data
             plt.scatter(data[:, 0], data[:, 1], c=labels)
 
+        # For each block, obtain three points: the vertex and the two extremities
         list_of_blocks = []
         for label in np.unique(labels):
             if label == -1:
@@ -244,42 +180,55 @@ class VisionManagerClass():
             point_max_y = vertex
             point_min_y = vertex
             for p in cluster_points:
-                #points below the vertex
-                if p[1]>vertex[1]:
-                    if p[0]>=point_max_y[0]:
-                        point_max_y=p
-                #points above the vertex
-                elif p[1]<vertex[1]:
-                    if p[0]>=point_min_y[0]:
-                        point_min_y=p
-                #NOTE: potrebbe succedere che p[1]==vertex[1]. Questo è il caso in cui il blocco ha un lato parallelo all'asse y 
+                
+                if p[1] > vertex[1]:
+                    # Points below the vertex
+                    if p[0] >= point_max_y[0]:
+                        point_max_y = p
+                
+                elif p[1] < vertex[1]:
+                    # Points above the vertex
+                    if p[0] >= point_min_y[0]:
+                        point_min_y = p
 
+                # NOTE: if p[1] == vertex[1] it means that we found a point that has the same y value of the vertex.
+                # This means that the block has a side perfectly parallel to the y axis
+
+            # Get the length of the sides   
             v1 = point_min_y - vertex
-            magnitude1 = np.linalg.norm(v1)
+            l1 = np.linalg.norm(v1)
             v2 = point_max_y - vertex
-            magnitude2 = np.linalg.norm(v2)
+            l2 = np.linalg.norm(v2)
 
-            # keep v1 as the biggest vector between v1 and v2
-            if magnitude2 > magnitude1:
+            # Keep v1 as the biggest vector between v1 and v2
+            if l2 > l1:
                 tmp = v1
                 v1 = v2
                 v2 = tmp
 
-                tmp = magnitude1
-                magnitude1 = magnitude2
-                magnitude2 = tmp
+                tmp = l1
+                l1 = l2
+                l2 = tmp
 
+            # Compute the yaw rotation in radians
             yaw = np.arctan2(v1[1],v1[0])
             if PLOTH_GRAPHS:
+                # Plot v1 (longest side) in red, v2 in blue
                 plt.quiver(vertex[0], vertex[1], v1[0], v1[1], angles='xy', scale_units='xy', scale=1, color='r', label='V1')
                 plt.quiver(vertex[0], vertex[1], v2[0], v2[1], angles='xy', scale_units='xy', scale=1, color='b', label='V2')
 
+            # Compute the "mid" point, aka the center of the block
             mid = (point_max_y + point_min_y) / 2
             if PLOTH_GRAPHS:
+                # Plot the center of the block with a green x
                 plt.plot(mid[0], mid[1], 'gx')
 
             def calculate_angle(v1: np.ndarray, v2: np.ndarray) -> float:
-                # Compute the dot product and magnitudes
+                """
+                Function to compute the angle between v1 and v2
+                """
+
+                # Compute the dot product and magnitudes of v1 and v2
                 dot_product = np.dot(v1, v2)
                 norm_v1 = np.linalg.norm(v1)
                 norm_v2 = np.linalg.norm(v2)
@@ -303,35 +252,44 @@ class VisionManagerClass():
 
 
             class ZedBlock:
-                def __init__(self, vertex: np.ndarray, point_max_y: np.ndarray, point_min_y: np.ndarray, mid: np.ndarray, yaw: float, v1: np.ndarray, v2: np.ndarray):
-                    self.vertex = vertex            # vertex point
-                    self.a = point_max_y            # point with max y
-                    self.b = point_min_y            # point with min y
-                    self.mid = mid                  # x,y coordinates of the center of the block
-                    self.yaw = yaw                  # yaw of the block, aka rotation w.r.t. z axis
+                """
+                Class to represent the blocks detected from the analysis of the point cloud given by the Zed Camera
+                """
 
-                    self.v1 = v1                    # longest side 
+                def __init__(self, vertex: np.ndarray, point_max_y: np.ndarray, point_min_y: np.ndarray, mid: np.ndarray, yaw: float, v1: np.ndarray, v2: np.ndarray):
+                    self.vertex = vertex        # vertex point
+                    self.a = point_max_y        # point with max y
+                    self.b = point_min_y        # point with min y
+                    self.mid = mid              # x,y coordinates of the center of the block
+                    self.yaw = yaw              # yaw of the block, aka rotation w.r.t. z axis
+
+                    self.v1 = v1                             # longest side 
                     self.m1 = round(np.linalg.norm(v1),2)    # length of longest side
-                    self.v2 = v2                    # shortest side
+                    self.v2 = v2                             # shortest side
                     self.m2 = round(np.linalg.norm(v2),2)    # length of shortest side
 
-                    self.accuracy = abs(calculate_angle(self.v1, self.v2) - 90)
+                    self.accuracy = abs(calculate_angle(self.v1, self.v2) - 90)     # accuracy defined as "how far away from 90° the angle between v1 and v2 is"
+
+                def print(self):
+                    print(f"Vertex: {b.vertex}")
+                    print(f"a: {b.a}")
+                    print(f"b: {b.b}")
+                    print(f"Mid: {b.mid}")
+                    print(f"Longest side: {b.m1}")
+                    print(f"Shortest side: {b.m2}")
+                    print(f"Yaw: {b.yaw}")
+                    print(f"Angle: {calculate_angle(b.v1, b.v2)}")
+                    print()
 
             block = ZedBlock(vertex=vertex, point_max_y=point_max_y, point_min_y=point_min_y, mid=mid, yaw=yaw, v1=v1, v2=v2)
             list_of_blocks.append(block)
 
+        # Sort the blocks detected via pointCloud for "accuracy", aka "how far away from 90° the angle between v1 and v2 is"
         list_of_blocks = sorted(list_of_blocks, key=lambda block: block.accuracy)
-        for b in list_of_blocks:
-            print()
-            print(f"Vertex: {b.vertex}")
-            print(f"a: {b.a}")
-            print(f"b: {b.b}")
-            print(f"Mid: {b.mid}")
-            print(f"Longest side: {b.m1}")
-            print(f"Shortest side: {b.m2}")
-            print(f"Yaw: {b.yaw}")
-            print(f"Angle: {calculate_angle(b.v1, b.v2)}")
 
+        if DEBUG:
+            for b in list_of_blocks:
+                b.print()
         
         if PLOTH_GRAPHS:
             plt.xlabel('x')
@@ -341,7 +299,6 @@ class VisionManagerClass():
             plt.gca().invert_xaxis()
             plt.savefig(f'{pointCloud_path}/2D_blocks.png')
         
-
         end_time = time.time()
         print(f"End process of zed points after {end_time-start_time}")
         
@@ -364,17 +321,18 @@ class VisionManagerClass():
 
         # per ciascun oggetto riconosciuto dalla rete neurale, riportiamo la bbox nel mondo 2d (visto da sopra)
         # valutiamo quindi se il centro dell'oggetto riconosciuto tramite point cloud sta in una sola bbox o più
-        # se sta una sola bbox, allora siamo sicuri di quale oggetto è stato riconosciuto da Yolo
-        # se il centro sta in più di una bbox, allora salto il blocco nella speranza che, rimuovendo blocchi nel mentre, la situazione si sistema
+        # se sta in una sola bbox, allora siamo sicuri di quale oggetto è stato riconosciuto da Yolo
+        # se il centro sta in più di una bbox, allora salto il blocco nella speranza che, rimuovendo blocchi nel mentre, la situazione si sistemi
 
         from scipy.spatial import ConvexHull, Delaunay
 
         class YoloDetectionObj:
-            def __init__ (self,obj_class: int, confidence: float, delaunay: Delaunay, number):
+            def __init__ (self, obj_class: int, confidence: float, delaunay: Delaunay, number):
                 self.obj_class = obj_class
                 self.confidence = confidence
                 self.delaunay = delaunay
                 self.number = number
+                
 
         yolo_blocks = []
         for prediction in predicted_objects:
@@ -383,80 +341,74 @@ class VisionManagerClass():
             x2 = math.floor(prediction[2])
             y2 = math.floor(prediction[3]) 
             confidence = prediction[4]
-            obj_class = int(prediction[5])
+            #obj_class = int(prediction[5])
             obj_name = prediction[6]
 
+            # Project the borders of bbox in point cloud coordinates, and in (2D) world ones
             borders = []
             borders.append((x1,y1))
             borders.append((x1,y2))
             borders.append((x2,y1))
             borders.append((x2,y2))
 
-            borders_3d = self.manage_cloud.read_cloud(pc2, borders)
-            borders_world_2d = []
-            for point in borders_3d:
-                point = ROTATIONAL_MATRIX.dot(point) + ZED_WRT_WORLD
-                point = np.array(point[:2])
-                borders_world_2d.append(point)
+            borders_world = self.manage_cloud.extract_point_world(borders, dim=2)
+            borders_world = np.array(borders_world)
 
-            borders_world_2d = np.array(borders_world_2d)
-
-            delaunay = Delaunay(borders_world_2d)
-            block_detected = YoloDetectionObj(obj_class, confidence, delaunay, predicted_objects.index(prediction))
+            # Create a Delaunay object to better manage the bbox area
+            delaunay = Delaunay(borders_world)
+            block_detected = YoloDetectionObj(obj_name, confidence, delaunay, predicted_objects.index(prediction))
             yolo_blocks.append(block_detected)
             
             if PLOTH_GRAPHS:
-                hull = ConvexHull(borders_world_2d)
-                # Plot the points
-                plt.plot(borders_world_2d[:, 0], borders_world_2d[:, 1], 'o')
+                # Create a ConvexHull object to better represent the bbox area 
+                hull = ConvexHull(borders_world)
 
                 # Plot the convex hull
                 for simplex in hull.simplices:
-                    plt.plot(borders_world_2d[simplex, 0], borders_world_2d[simplex, 1], 'k-')
+                    plt.plot(borders_world[simplex, 0], borders_world[simplex, 1], '-', color='grey', alpha=0.3)
 
-                # Calculate the centroid of the Convex Hull
-                hull_points = borders_world_2d[hull.vertices]
+                # Calculate the centroid of the Convex Hull to print the object number inside
+                hull_points = borders_world[hull.vertices]
                 centroid = np.mean(hull_points, axis=0)
-                
-                # Plot the centroid with the object number
-                plt.text(centroid[0], centroid[1], predicted_objects.index(prediction), fontsize=12, ha='center', va='center')
+                plt.text(centroid[0], centroid[1], predicted_objects.index(prediction)+1, fontsize=12, ha='center', va='center', color='grey', alpha=0.3)
 
         if PLOTH_GRAPHS:
             plt.savefig(f'{pointCloud_path}/2D_bboxes.png')
 
         ###################### MERGE DEI RISULTATI #######################
 
-        #creo associazione tra gli oggetti riconosciuti da yolov8 e quelli identificati dalla point_cloud
+        # Merge of info taken from ObjectDetection with Yolo and analyzing Point Cloud
 
         object_class_sizes = {
-            0 : {'x' : 1, 'y' : 1},
-            1 : {'x' : 1, 'y' : 2}, 
-            2 : {'x' : 1, 'y' : 2}, 
-            3 : {'x' : 1, 'y' : 2}, 
-            4 : {'x' : 1, 'y' : 2}, 
-            5 : {'x' : 1, 'y' : 3}, 
-            6 : {'x' : 1, 'y' : 3}, #da controllare il 6
-            7 : {'x' : 1, 'y' : 4}, 
-            8 : {'x' : 1, 'y' : 4}, 
-            9 : {'x' : 2, 'y' : 2}, 
-            10 : {'x' : 2, 'y' : 2} 
+            'X1-Y1-Z2' : {'x' : 1, 'y' : 1, 'z' : 2},
+            'X1-Y2-Z1' : {'x' : 1, 'y' : 2, 'z' : 1}, 
+            'X1-Y2-Z2' : {'x' : 1, 'y' : 2, 'z' : 2}, 
+            'X1-Y2-Z2-CHAMFER' : {'x' : 1, 'y' : 2, 'z' : 2},
+            'X1-Y2-Z2-TWINFILLET' : {'x' : 1, 'y' : 2, 'z' : 2},
+            'X1-Y3-Z2' : {'x' : 1, 'y' : 3, 'z' : 2}, 
+            'X1-Y3-Z2-FILLET' : {'x' : 1, 'y' : 3, 'z' : 2},
+            'X1-Y4-Z1' : {'x' : 1, 'y' : 4, 'z' : 1}, 
+            'X1-Y4-Z2' : {'x' : 1, 'y' : 4, 'z' : 2}, 
+            'X2-Y2-Z2' : {'x' : 2, 'y' : 2, 'z' : 2}, 
+            'X2-Y2-Z2-FILLET' : {'x' : 2, 'y' : 2, 'z' : 2} 
         }
 
         blocks_to_take = []
+        print("Take:")
         for block in list_of_blocks:
             discard = False
             bbox_id = -1
             
             for bbox in yolo_blocks:
                 if bbox.delaunay.find_simplex(block.mid) >= 0:
-                    if discard:  # The block is inside multiple bounding boxes
+                    if discard:     # The block is inside multiple bounding boxes
                         bbox_id = -1
                         break
                     else:
                         discard = True
                         bbox_id = yolo_blocks.index(bbox)
             
-            if bbox_id != -1 and yolo_blocks[bbox_id].confidence > 0.7:
+            if bbox_id != -1 and yolo_blocks[bbox_id].confidence >= 0.65:
                 
                 block_v1_size = round(block.m1 / 0.03,0)
                 block_v2_size = round(block.m2 / 0.03,0)
@@ -473,9 +425,19 @@ class VisionManagerClass():
                 #print(f"yolo - m1, m2: {expected_max_size}  {expected_min_size}")
                 
                 if block_v1_size == expected_max_size and block_v2_size == expected_min_size:
-                    print(f"-> oggetto da prendere: {list_of_blocks.index(block)}\n-> bbox: {yolo_blocks[bbox_id].number}\n")
-                
-        
+                    #print(f"-> oggetto da prendere: {list_of_blocks.index(block)}")
+                    print(f"-> OBJECT {yolo_blocks[bbox_id].number + 1}\
+                          \n   x: {block.mid[0]}\
+                          \n   y: {block.mid[1]}\
+                          \n   z: {object_class_sizes[yolo_blocks[bbox_id].obj_class]['z']/2}\
+                          \n   yaw: {block.yaw}\
+                          \n   id: {yolo_blocks[bbox_id].obj_class}\
+                          ")  # value of bbox represented on 2D_bboxes.png
+
+        #TODO: gestire casi con v2=0 -> gestirli solo se len(blocks_to_take)==0
+        # qui sono dati due casi:
+        # 1. effettivamente il blocco è parallelo
+        # 2. il secondo lato è nascosto dietro ad un altro blocco
 
         return  
 
