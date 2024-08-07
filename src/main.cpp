@@ -40,25 +40,25 @@ int main(int argc, char **argv) {
    // for-each block, move
    for (int i = 0; i < n_blocks; i++) {
       // when the vision module is ready, uncomment this block
-      // if (vision_client.call(vision_srv)) {
-      //    world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
-      //        vision_srv.response.poses[i].position.z;
-      //    world_orientation =
-      //        Eigen::Quaterniond(vision_srv.response.poses[i].orientation.w,
-      //        vision_srv.response.poses[i].orientation.x,
-      //                           vision_srv.response.poses[i].orientation.y,
-      //                           vision_srv.response.poses[i].orientation.z);
-      //    block_id = vision_srv.response.blocks_id[i];
-      //    n_blocks = vision_srv.response.n_blocks;
-      //    std::cout << "MAIN Process: Transmitting block " << block_id << " | block " << i << std::endl;
-      // } else {
-      //    std::cerr << "MAIN Process: Failed to call the VISION module | block " << i << std::endl;
-      //    continue;
-      // }
+      if (vision_client.call(vision_srv)) {
+         world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
+             vision_srv.response.poses[i].position.z;
+         world_orientation =
+             Eigen::Quaterniond(vision_srv.response.poses[i].orientation.w, vision_srv.response.poses[i].orientation.x,
+                                vision_srv.response.poses[i].orientation.y, vision_srv.response.poses[i].orientation.z);
+         block_id = vision_srv.response.blocks_id[i];
+         n_blocks = vision_srv.response.n_blocks;
+         std::cout << "Block center (" << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ")"
+                   << std::endl;
+         std::cout << "MAIN Process: Transmitting block " << block_id << " | block " << i << std::endl;
+      } else {
+         std::cerr << "MAIN Process: Failed to call the VISION module | block " << i << std::endl;
+         continue;
+      }
       //////////////////////////////////
 
       // when the vision module is ready, comment this block
-      world_point = world_points.row(i);
+      // world_point = world_points.row(i);
       //////////////////////////////////
 
       srv.request.pose.position.x = world_point[0];

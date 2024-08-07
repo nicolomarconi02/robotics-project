@@ -15,10 +15,12 @@ from robotics_project_vision import object_detection as vision
 
 from sensor_msgs.msg import Image, PointCloud2
 from sensor_msgs import point_cloud2
-from robotics_project.srv import GetBlocks
+from robotics_project.srv import GetBlocks, GetBlocksResponse
 
 from datetime import datetime
 import os
+
+from geometry_msgs.msg import Pose
 
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
@@ -86,13 +88,6 @@ class VisionManagerClass():
         
         # Make use of the image obtained
         self.digest_ZED_data(self.image_msg, self.point_cloud2_msg)
-
-        return
-        # Service's definition and its handler setting
-        s = ros.Service('GetBlocks', GetBlocks, self.handle_get_blocks)
-
-        # The node runs indefinitely
-        ros.spin()
 
 
     def digest_ZED_data(self, image : Image, pc2 : PointCloud2):
@@ -393,7 +388,7 @@ class VisionManagerClass():
             'X2-Y2-Z2-FILLET' : {'x' : 2, 'y' : 2, 'z' : 2} 
         }
 
-        blocks_to_take = []
+        self.blocks_to_take = []
         print("Take:")
         for block in list_of_blocks:
             discard = False
@@ -409,6 +404,7 @@ class VisionManagerClass():
                         bbox_id = yolo_blocks.index(bbox)
             
             if bbox_id != -1 and yolo_blocks[bbox_id].confidence >= 0.65:
+                block.id_class = yolo_blocks[bbox_id].obj_class
                 
                 block_v1_size = round(block.m1 / 0.03,0)
                 block_v2_size = round(block.m2 / 0.03,0)
@@ -426,6 +422,8 @@ class VisionManagerClass():
                 
                 if block_v1_size == expected_max_size and block_v2_size == expected_min_size:
                     #print(f"-> oggetto da prendere: {list_of_blocks.index(block)}")
+                    self.blocks_to_take.append(block)
+
                     print(f"-> OBJECT {yolo_blocks[bbox_id].number + 1}\
                           \n   x: {block.mid[0]}\
                           \n   y: {block.mid[1]}\
@@ -441,8 +439,15 @@ class VisionManagerClass():
 
         return  
 
+    def start_service(self):
+        # Service's definition and its handler's setting
+        s = ros.Service('vision', GetBlocks, self.handle_get_blocks)
+        print('VISION Process: Service STARTED')
 
-    def handle_get_blocks():
+        # The node runs indefinitely
+        ros.spin()
+
+    def handle_get_blocks(self, req):
         """
         This function gets called in order to reply to the service's calls coming from the clients.
         Arguments:
@@ -453,12 +458,42 @@ class VisionManagerClass():
 
         print('VISION PROCESS: handle_obtain_blocks CALLED')
 
+        poses = []
+        blocks_id = []
+        n_blocks = len(self.blocks_to_take)
+
+        print(f'The blocks to be SENT are {n_blocks}, the following lines describe them')
+
+        for block in self.blocks_to_take:
+            print(f'{block.id_class} with centre in ({block.mid[0]}, {block.mid[1]}) and an angle of {block.yaw}')
+
+            pose = Pose()
+
+            # position
+            pose.position.x = block.mid[0]
+            pose.position.y = block.mid[1]
+            pose.position.z = 0.31
+            
+            # quaternion
+            pose.orientation.w = math.cos(block.yaw/2)
+            pose.orientation.x = 0.0
+            pose.orientation.y = 0.0
+            pose.orientation.z = math.sin(block.yaw/2)
+
+            poses.append(pose)
+            blocks_id.append(block.id_class)
+
+        print('VISION PROCESS: handle_obtain_blocks ENDED')
+
+        return GetBlocksResponse(poses, blocks_id, np.int8(n_blocks))
+
 
 def main():
     print('VISION PROCESS: STARTED')
 
     # Starting the ROS Node and keep it running
-    node = VisionManagerClass()
+    manager = VisionManagerClass()
+    manager.start_service()
 
 
 if __name__ == '__main__':
