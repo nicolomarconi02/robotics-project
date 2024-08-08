@@ -47,7 +47,7 @@ BLOCK_LEVEL = 0.875         # z value for which we are sure to not intersect wit
 ERROR_Z = 3                 # meaning min_value -> 0.001
 PLOTH_GRAPHS = True
 
-DEBUG = True
+DEBUG = False
 
 
 # move to repo
@@ -75,6 +75,140 @@ class Manage_Point_Cloud():
             points_3d_world.append(point)
 
         return points_3d_world
+
+def exchange (a,b):
+    return b,a
+
+class ZedBlock:
+    """
+    Class to represent the blocks detected from the analysis of the point cloud given by the Zed Camera
+    """
+
+    def __init__(self, cluster_points=None):
+        self.cluster_points = cluster_points
+        
+        self.vertex : np.ndarray = None        # x,y coordinates of the vertex point
+
+        # longest side
+        self.p1 : np.ndarray = None            # x,y coordinates of the point that, together with the vertex, generates the longest side 
+        self.v1 : np.ndarray = None            # vector that represents the longest side
+        self.n1 : float = 0                    # length (norm) of the longest side
+        # shorter side
+        self.p2 : np.ndarray = None            # x,y coordinates of the point that, together with the vertex, generates the shortest side 
+        self.v2 : np.ndarray = None            # vector that represents the shortest side
+        self.n2 : float = 0                    # length (norm) of the shortest side
+        
+        self.angle : float = None              # angle [degrees] between the two sides (should be around 90°)
+        self.accuracy : float = None           # accuracy defined as "how far away from 90° the angle between v1 and v2 is"
+
+        self.mid : np.ndarray = None           # x,y coordinates of the center of the block
+                        
+        self.yaw : float = None                # yaw [radians] of the block, aka rotation w.r.t. z axis
+
+        # yolo parameters
+        self.yolo_bbox_id = None
+        self.yolo_confidence = None
+        self.yolo_prediction = None
+
+        if self.cluster_points is not None:
+            self.compute_vertex()
+            self.compute_sides()
+            self.compute_angle()
+            if self.v2 is not None:
+                self.compute_mid()
+                self.compute_yaw()
+            else:
+                self.mid = (self.p1 + self.vertex)/2
+
+    def compute_vertex(self):
+        point = self.cluster_points[:,0].argmin()
+        self.vertex = np.array(self.cluster_points[point,:])
+
+    def compute_sides(self):
+        point_max_y = self.vertex
+        point_min_y = self.vertex
+        for p in self.cluster_points:
+            
+            if p[1] > self.vertex[1]:
+                # Points below the vertex
+                if p[0] >= point_max_y[0]:
+                    point_max_y = p
+            
+            elif p[1] < self.vertex[1]:
+                # Points above the vertex
+                if p[0] >= point_min_y[0]:
+                    point_min_y = p
+
+            # NOTE: if p[1] == vertex[1] it means that we found a point that has the same y value of the vertex.
+            # This means that the block has a side perfectly parallel to the y axis
+
+        # Get the length of the sides
+        p1 = point_min_y   
+        v1 = p1 - self.vertex
+        n1 = round(np.linalg.norm(v1),3)
+        
+        p2 = point_max_y
+        v2 = p2 - self.vertex
+        n2 = round(np.linalg.norm(v2),3)
+
+        # Keep v1 as the longest side. If not, invert the values
+        if n2 > n1:
+            v1, v2 = exchange(v1,v2)
+            n1, n2 = exchange(n1,n2)
+            p1,p2 = exchange(p1,p2)
+
+        # Save the values in the ZedBlock object
+        self.p1 = p1
+        self.v1 = v1
+        self.n1 = n1
+
+        if not np.array_equal(p2, self.vertex):
+            self.p2 = p2
+            self.v2 = v2
+            self.n2 = n2
+
+    def compute_angle(self):
+        """
+        Function to compute the angle between v1 and v2
+        """
+
+        # Check for zero magnitude vectors
+        if self.n1 == 0 or self.n2 == 0:
+            # Handle the zero vector case, e.g., return an angle farthest from 90 degrees
+            self.angle = float('inf')
+            self.accuracy = float('inf')
+            return
+        
+        # Compute the dot product and magnitudes of v1 and v2
+        dot_product = np.dot(self.v1, self.v2)
+        
+        # Compute the cosine of the angle, and clip the cosine value to be within the range [-1, 1] to avoid errors in arccos
+        cos_theta = dot_product / (self.n1 * self.n2)
+        cos_theta = np.clip(cos_theta, -1.0, 1.0)
+        
+        # Compute the angle in radians and convert to degrees
+        angle_rad = np.arccos(cos_theta)
+        angle_deg = np.degrees(angle_rad)
+        
+        self.angle = angle_deg
+        self.accuracy = abs(self.angle - 90)
+
+    def compute_mid(self):
+        self.mid = (self.p1 + self.p2) / 2
+
+    def compute_yaw(self):
+        self.yaw = np.arctan2(self.v1[1],self.v1[0])
+    
+    def __str__(self):
+        return f"ZedBlock(vertex={self.vertex}, p1={self.p1}, v1={self.v1}, n1={self.n1}, p2={self.p2}, v2={self.v2}, n2={self.n2}, angle={self.angle}, accuracy={self.accuracy}, mid={self.mid}, yaw={self.yaw}, bbox_id={self.yolo_bbox_id})"
+
+    def plot(self):
+        # Plot v1 (longest side) in red, v2 in blue
+        plt.quiver(self.vertex[0], self.vertex[1], self.v1[0], self.v1[1], angles='xy', scale_units='xy', scale=1, color='r', label='V1')
+        if self.v2 is not None:
+            plt.quiver(self.vertex[0], self.vertex[1], self.v2[0], self.v2[1], angles='xy', scale_units='xy', scale=1, color='b', label='V2')
+        if self.mid is not None:
+            plt.plot(self.mid[0], self.mid[1], 'gx')
 
 class VisionManagerClass():
 
@@ -121,6 +255,7 @@ class VisionManagerClass():
         ################ POINT CLOUD ################
 
         import time
+        print("> POINT CLOUD PROCESS: STARTED")
         start_time = time.time()
 
         pointCloud_path = f"predictions/{imgName}/pointCloud"
@@ -172,115 +307,10 @@ class VisionManagerClass():
         for label in np.unique(labels):
             if label == -1:
                 continue  # Skip noise points
-            cluster_points = data[labels == label]
 
-            vertex = cluster_points[:,0].argmin()
-            vertex = np.array(cluster_points[vertex,:])
-            point_max_y = vertex
-            point_min_y = vertex
-            for p in cluster_points:
-                
-                if p[1] > vertex[1]:
-                    # Points below the vertex
-                    if p[0] >= point_max_y[0]:
-                        point_max_y = p
-                
-                elif p[1] < vertex[1]:
-                    # Points above the vertex
-                    if p[0] >= point_min_y[0]:
-                        point_min_y = p
-
-                # NOTE: if p[1] == vertex[1] it means that we found a point that has the same y value of the vertex.
-                # This means that the block has a side perfectly parallel to the y axis
-
-            # Get the length of the sides   
-            v1 = point_min_y - vertex
-            l1 = np.linalg.norm(v1)
-            v2 = point_max_y - vertex
-            l2 = np.linalg.norm(v2)
-
-            # Keep v1 as the biggest vector between v1 and v2
-            if l2 > l1:
-                tmp = v1
-                v1 = v2
-                v2 = tmp
-
-                tmp = l1
-                l1 = l2
-                l2 = tmp
-
-            # Compute the yaw rotation in radians
-            yaw = np.arctan2(v1[1],v1[0])
+            block = ZedBlock(cluster_points=data[labels == label])
             if PLOTH_GRAPHS:
-                # Plot v1 (longest side) in red, v2 in blue
-                plt.quiver(vertex[0], vertex[1], v1[0], v1[1], angles='xy', scale_units='xy', scale=1, color='r', label='V1')
-                plt.quiver(vertex[0], vertex[1], v2[0], v2[1], angles='xy', scale_units='xy', scale=1, color='b', label='V2')
-
-            # Compute the "mid" point, aka the center of the block
-            mid = (point_max_y + point_min_y) / 2
-            if PLOTH_GRAPHS:
-                # Plot the center of the block with a green x
-                plt.plot(mid[0], mid[1], 'gx')
-
-            def calculate_angle(v1: np.ndarray, v2: np.ndarray) -> float:
-                """
-                Function to compute the angle between v1 and v2
-                """
-
-                # Compute the dot product and magnitudes of v1 and v2
-                dot_product = np.dot(v1, v2)
-                norm_v1 = np.linalg.norm(v1)
-                norm_v2 = np.linalg.norm(v2)
-
-                # Check for zero magnitude vectors
-                if norm_v1 == 0 or norm_v2 == 0:
-                    # Handle the zero vector case, e.g., return an angle farthest from 90 degrees
-                    return float('inf')
-                
-                # Compute the cosine of the angle
-                cos_theta = dot_product / (norm_v1 * norm_v2)
-                
-                # Clip the cosine value to be within the range [-1, 1] to avoid errors in arccos
-                cos_theta = np.clip(cos_theta, -1.0, 1.0)
-                
-                # Compute the angle in radians and convert to degrees
-                angle_rad = np.arccos(cos_theta)
-                angle_deg = np.degrees(angle_rad)
-                
-                return angle_deg
-
-
-            class ZedBlock:
-                """
-                Class to represent the blocks detected from the analysis of the point cloud given by the Zed Camera
-                """
-
-                def __init__(self, vertex: np.ndarray, point_max_y: np.ndarray, point_min_y: np.ndarray, mid: np.ndarray, yaw: float, v1: np.ndarray, v2: np.ndarray):
-                    self.vertex = vertex        # vertex point
-                    self.a = point_max_y        # point with max y
-                    self.b = point_min_y        # point with min y
-                    self.mid = mid              # x,y coordinates of the center of the block
-                    self.yaw = yaw              # yaw of the block, aka rotation w.r.t. z axis
-
-                    self.v1 = v1                             # longest side 
-                    self.m1 = round(np.linalg.norm(v1),2)    # length of longest side
-                    self.v2 = v2                             # shortest side
-                    self.m2 = round(np.linalg.norm(v2),2)    # length of shortest side
-
-                    self.accuracy = abs(calculate_angle(self.v1, self.v2) - 90)     # accuracy defined as "how far away from 90° the angle between v1 and v2 is"
-
-                def print(self):
-                    print(f"Vertex: {b.vertex}")
-                    print(f"a: {b.a}")
-                    print(f"b: {b.b}")
-                    print(f"Mid: {b.mid}")
-                    print(f"Longest side: {b.m1}")
-                    print(f"Shortest side: {b.m2}")
-                    print(f"Yaw: {b.yaw}")
-                    print(f"Angle: {calculate_angle(b.v1, b.v2)}")
-                    print()
-
-            block = ZedBlock(vertex=vertex, point_max_y=point_max_y, point_min_y=point_min_y, mid=mid, yaw=yaw, v1=v1, v2=v2)
+                block.plot()
             list_of_blocks.append(block)
 
         # Sort the blocks detected via pointCloud for "accuracy", aka "how far away from 90° the angle between v1 and v2 is"
@@ -288,32 +318,35 @@ class VisionManagerClass():
 
         if DEBUG:
             for b in list_of_blocks:
-                b.print()
+                print(b)
         
         if PLOTH_GRAPHS:
             plt.xlabel('x')
+            plt.xlim(0, 1.0)
             plt.ylabel('y')
+            plt.ylim(0, 0.8)
             plt.axis('equal')
+            plt.gca().set_clip_on(True)
             plt.gca().invert_yaxis()
             plt.gca().invert_xaxis()
             plt.savefig(f'{pointCloud_path}/2D_blocks.png')
         
         end_time = time.time()
-        print(f"End process of zed points after {end_time-start_time}")
+        print(f"< POINT CLOUD PROCESS: ENDED after {end_time-start_time}")
         
 
 
         ###################### OBJECT DETECTION #######################
         
-        print("Starting process of object detection")
+        print("> OBJECT DETECTION PROCESS: STARTED")
         start_time = time.time()
 
         # predict with the object-detection model
         prediction_path = f"predictions/{imgName}/yoloV8"
-        predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, bottom_crop=130, print_to_console=True)
+        predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, bottom_crop=130, print_to_console=False)
 
         end_time = time.time()
-        print(f"End process of object detection after {end_time-start_time}")
+        print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
 
 
         ###################### BBOX IN GRAFICO 2D #######################
@@ -381,54 +414,140 @@ class VisionManagerClass():
         self.blocks_to_take = []
         print("Take:")
         for block in list_of_blocks:
-            discard = False
-            bbox_id = -1
-            
-            for bbox in yolo_blocks:
-                if bbox.delaunay.find_simplex(block.mid) >= 0:
-                    if discard:     # The block is inside multiple bounding boxes
-                        bbox_id = -1
-                        break
+
+            if block.mid is not None:
+                discard = False
+                
+                for bbox in yolo_blocks:
+                    if bbox.delaunay.find_simplex(block.mid) >= 0:
+                        if discard:     # The block is inside multiple bounding boxes
+                            block.yolo_bbox_id = None
+                            break
+                        else:
+                            discard = True
+                            block.yolo_bbox_id = yolo_blocks.index(bbox)
+                
+                if block.yolo_bbox_id is not None:
+                    
+                    # Copy all the info in the ZedBlock object
+                    block.yolo_confidence = yolo_blocks[block.yolo_bbox_id].confidence
+                    block.yolo_prediction = yolo_blocks[block.yolo_bbox_id].obj_class
+
+                    if block.yolo_confidence > 0.65:
+                        block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                        
+                        v1_norm = round(block.n1 / 0.031,0)
+                        v2_norm = round(block.n2 / 0.031,0)
+
+                        expected_sizes = Models[block.yolo_prediction].factor
+                        expected_max_size = max(expected_sizes.width, expected_sizes.length)
+                        expected_min_size = min(expected_sizes.width, expected_sizes.length)
+                        
+                        if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                            self.blocks_to_take.append(block)
+
+                            print(f"-> OBJECT {block.yolo_bbox_id + 1}\
+                                \n   x: {block.mid[0]}\
+                                \n   y: {block.mid[1]}\
+                                \n   z: {block.mid[2]}\
+                                \n   yaw: {block.yaw}\
+                                \n   id: {block.yolo_prediction}\
+                                ")  # value of bbox represented on 2D_bboxes.png
+
+        first_with_box = -1
+        if len(self.blocks_to_take) == 0:
+            # the idea is: take only one block, the one that respects some pre-defined requisites
+            # and is the closer to the zed camera (the vertex has a smaller x as possible)
+
+            # Order the blocks for x closer to 0
+            list_of_blocks = sorted(list_of_blocks, key=lambda block: block.vertex[0])
+            for block in list_of_blocks:
+                if block.yolo_bbox_id is not None:
+                    taken = False
+                    if first_with_box<0 :
+                        first_with_box = list_of_blocks.index(block)
+
+                    if block.n2 == 0:
+                        # The ZedCamera sees only one side, therefore we have to see whether this side matches
+                        # one of the sides predicted by the model
+
+                        v1_norm = round(block.n1 / 0.031,0)
+
+                        expected_sizes = Models[block.yolo_prediction].factor
+                        expected_max_size = max(expected_sizes.width, expected_sizes.length)
+                        expected_min_size = min(expected_sizes.width, expected_sizes.length)
+
+                        if v1_norm  == expected_max_size:
+                            block.p2 = np.array([block.vertex[0] + expected_min_size*0.031/2, block.vertex[1]])
+                            block.v2 = block.p2 - block.vertex
+                            block.n2 = round(np.linalg.norm(block.v2),3)
+                            block.compute_mid()
+                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                            block.compute_yaw()
+
+                            taken = True
+
+                        elif v1_norm == expected_min_size:
+                            block.p2 = np.array([block.vertex[0] + expected_max_size*0.031/2, block.vertex[1]])
+                            block.v2 = block.p2 - block.vertex
+                            block.n2 = round(np.linalg.norm(block.v2),3)
+
+                            block.p1, block.p2 = exchange(block.p1, block.p2)
+                            block.v1, block.v2 = exchange(block.v1, block.v2)
+                            block.n1, block.n2 = exchange(block.n1, block.n2)
+                            block.compute_mid()
+                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                            block.compute_yaw()
+
+                            taken = True
+
                     else:
-                        discard = True
-                        bbox_id = yolo_blocks.index(bbox)
-            
-            if bbox_id != -1 and yolo_blocks[bbox_id].confidence >= 0.65:
-                block.id_class = yolo_blocks[bbox_id].obj_class
-                block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.id_class].size.height/2)]
-                
-                block_v1_size = round(block.m1 / 0.03,0)
-                block_v2_size = round(block.m2 / 0.03,0)
+                        # If the block is not a one-detecteed-side one, then we could check if the model
+                        # predicted the right sides' length
 
-                expected_sizes = Models[block.id_class].factor
-                expected_max_size = max(expected_sizes.width, expected_sizes.length)
-                expected_min_size = min(expected_sizes.width, expected_sizes.length)
+                        v1_norm = round(block.n1 / 0.031,0)
+                        v2_norm = round(block.n2 / 0.031,0)
 
-                #print(f"------------------")
-                #print(f"Oggetto: {list_of_blocks.index(block)}")
-                #print(f"BBox: {bbox_id}")
-                #print(f"m1, m2: {block.m1}  {block.m2}")
-                #print(f"norm - m1, m2: {round(block.m1 / 0.03,0)}  {round(block.m2 / 0.03,0)}")
-                #print(f"yolo - m1, m2: {expected_max_size}  {expected_min_size}")
-                
-                if block_v1_size == expected_max_size and block_v2_size == expected_min_size:
-                    #print(f"-> oggetto da prendere: {list_of_blocks.index(block)}")
-                    self.blocks_to_take.append(block)
+                        expected_sizes = Models[block.yolo_prediction].factor
+                        expected_max_size = max(expected_sizes.width, expected_sizes.length)
+                        expected_min_size = min(expected_sizes.width, expected_sizes.length)
+                        
+                        if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                            self.blocks_to_take.append(block)
+                            taken = True
 
-                    print(f"-> OBJECT {yolo_blocks[bbox_id].number + 1}\
-                          \n   x: {block.mid[0]}\
-                          \n   y: {block.mid[1]}\
-                          \n   z: {block.mid[2]}\
-                          \n   yaw: {block.yaw}\
-                          \n   id: {yolo_blocks[bbox_id].obj_class}\
-                          ")  # value of bbox represented on 2D_bboxes.png
-
-        #TODO: gestire casi con v2=0 -> gestirli solo se len(blocks_to_take)==0
-        # qui sono dati due casi:
-        # 1. effettivamente il blocco è parallelo
-        # 2. il secondo lato è nascosto dietro ad un altro blocco
-
+                    # If the object is taken, just pass this one
+                    if taken:
+                        print("...Only one this time...")
+                        self.blocks_to_take.append(block)
+                        print(f"-> OBJECT {block.yolo_bbox_id + 1}\
+                                \n   x: {block.mid[0]}\
+                                \n   y: {block.mid[1]}\
+                                \n   z: {block.mid[2]}\
+                                \n   yaw: {block.yaw}\
+                                \n   id: {block.yolo_prediction}\
+                                ")
+                        return
+                    
+            # If nothing better was found, we return the block closer to the camera which was identified
+            # from the model, using the z-value from the model
+            block = list_of_blocks[first_with_box]
+            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+            self.blocks_to_take.append(block)
+            print("Nothing better was found")
+            print(f"-> OBJECT {block.yolo_bbox_id + 1}\
+                                \n   x: {block.mid[0]}\
+                                \n   y: {block.mid[1]}\
+                                \n   z: {block.mid[2]}\
+                                \n   yaw: {block.yaw}\
+                                \n   id: {block.yolo_prediction}\
+                                ")
+                    
         return  
+    
+
+    #TODO: manca da gestire i blocchi posti in alto a destra (nel plot dei blocchi), ovvero quei blocchi che, se
+    #presentano una certa angolazione, il vertex non viene posizionato nel posto giusto
 
     def start_service(self):
         # Service's definition and its handler's setting
