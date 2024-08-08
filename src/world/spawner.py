@@ -14,7 +14,7 @@ from world import Range, GenerationLimits
 
 class Spawner():
     # static attribute
-    colors=['Red', 'Green', 'Blue', 'Yellow', 'Purple', 'Orange', 'Indigo', 'Turquoise']
+    colors=['Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Turquoise']
     MAX_SPAWNS = 100000
     MARGIN=0.05
     LIMITS=GenerationLimits(
