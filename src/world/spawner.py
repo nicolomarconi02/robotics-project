@@ -5,31 +5,19 @@ import math
 import os
 import sys
 import random
-from block import Block
-from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
 
-
-
-@dataclass
-class Range:
-    min: float
-    max: float
-
-@dataclass
-class TableLimits:
-    x: Range
-    y: Range
-    angle: Range
+from block import Block
+from world import Range, GenerationLimits
 
 class Spawner():
     # static attribute
     colors=['Red', 'Green', 'Blue', 'Yellow', 'Purple', 'Orange', 'Indigo', 'Turquoise']
     MAX_SPAWNS = 100000
     MARGIN=0.05
-    LIMITS=TableLimits(
+    LIMITS=GenerationLimits(
         Range(0.15, 0.85),
         Range(0.3, 0.7),
         Range(0, 360)
@@ -110,13 +98,12 @@ class Spawner():
 
             #add rectangle to plot
             for a in final_blocks:
-                ax.add_patch(Rectangle((a.x, a.y), a.width, a.height, 
-                                angle=a.angle,
-                                edgecolor='red',
-                                facecolor='none'))
+                ax.add_patch(Rectangle((a.x, a.y), a.size.width, a.size.length, 
+                                angle=math.degrees(a.angle),
+                                color='red'))
             for b in margins:
-                ax.add_patch(Rectangle((b.x, b.y), b.width, b.height, 
-                                angle=b.angle,
+                ax.add_patch(Rectangle((b.x, b.y), b.size.width, b.size.length, 
+                                angle=math.degrees(b.angle),
                                 edgecolor='blue',
                                 facecolor='none'))
 

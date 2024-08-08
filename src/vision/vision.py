@@ -22,6 +22,10 @@ import os
 
 from geometry_msgs.msg import Pose
 
+import sys
+sys.path.append("src/world")
+from world import Models, TABLE_HEIGHT
+
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
 
@@ -374,20 +378,6 @@ class VisionManagerClass():
 
         # Merge of info taken from ObjectDetection with Yolo and analyzing Point Cloud
 
-        object_class_sizes = {
-            'X1-Y1-Z2' : {'x' : 1, 'y' : 1, 'z' : 2},
-            'X1-Y2-Z1' : {'x' : 1, 'y' : 2, 'z' : 1}, 
-            'X1-Y2-Z2' : {'x' : 1, 'y' : 2, 'z' : 2}, 
-            'X1-Y2-Z2-CHAMFER' : {'x' : 1, 'y' : 2, 'z' : 2},
-            'X1-Y2-Z2-TWINFILLET' : {'x' : 1, 'y' : 2, 'z' : 2},
-            'X1-Y3-Z2' : {'x' : 1, 'y' : 3, 'z' : 2}, 
-            'X1-Y3-Z2-FILLET' : {'x' : 1, 'y' : 3, 'z' : 2},
-            'X1-Y4-Z1' : {'x' : 1, 'y' : 4, 'z' : 1}, 
-            'X1-Y4-Z2' : {'x' : 1, 'y' : 4, 'z' : 2}, 
-            'X2-Y2-Z2' : {'x' : 2, 'y' : 2, 'z' : 2}, 
-            'X2-Y2-Z2-FILLET' : {'x' : 2, 'y' : 2, 'z' : 2} 
-        }
-
         self.blocks_to_take = []
         print("Take:")
         for block in list_of_blocks:
@@ -405,13 +395,14 @@ class VisionManagerClass():
             
             if bbox_id != -1 and yolo_blocks[bbox_id].confidence >= 0.65:
                 block.id_class = yolo_blocks[bbox_id].obj_class
+                block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.id_class].size.height/2)]
                 
                 block_v1_size = round(block.m1 / 0.03,0)
                 block_v2_size = round(block.m2 / 0.03,0)
 
-                expected_sizes = object_class_sizes[yolo_blocks[bbox_id].obj_class]
-                expected_max_size = max(expected_sizes['x'], expected_sizes['y'])
-                expected_min_size = min(expected_sizes['x'], expected_sizes['y'])
+                expected_sizes = Models[block.id_class].factor
+                expected_max_size = max(expected_sizes.width, expected_sizes.length)
+                expected_min_size = min(expected_sizes.width, expected_sizes.length)
 
                 #print(f"------------------")
                 #print(f"Oggetto: {list_of_blocks.index(block)}")
@@ -427,7 +418,7 @@ class VisionManagerClass():
                     print(f"-> OBJECT {yolo_blocks[bbox_id].number + 1}\
                           \n   x: {block.mid[0]}\
                           \n   y: {block.mid[1]}\
-                          \n   z: {object_class_sizes[yolo_blocks[bbox_id].obj_class]['z']/2}\
+                          \n   z: {block.mid[2]}\
                           \n   yaw: {block.yaw}\
                           \n   id: {yolo_blocks[bbox_id].obj_class}\
                           ")  # value of bbox represented on 2D_bboxes.png
@@ -472,7 +463,7 @@ class VisionManagerClass():
             # position
             pose.position.x = block.mid[0]
             pose.position.y = block.mid[1]
-            pose.position.z = 0.31
+            pose.position.z = block.mid[2]
             
             # quaternion
             pose.orientation.w = math.cos(block.yaw/2)

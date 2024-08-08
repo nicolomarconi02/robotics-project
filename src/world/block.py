@@ -2,29 +2,32 @@ from geometry_msgs.msg import Pose
 import math
 import os
 import re
-
-UNIT_LENGTH = 0.031
-
-model_names = os.listdir("models")
-models = {}
-size_pattern = r'[X,Y,Z][0-9]'
-
-for model in model_names:
-    sizes = re.findall(size_pattern, model)
-
-    models[model] = { 'x':float(sizes[0][1:]), 'y':float(sizes[1][1:]), 'z':float(sizes[2][1:]) }
+from world import Models, Size
 
 class Block:
-    UNIT_LENGTH=UNIT_LENGTH
     def __init__(self, model, x=0, y=0, z=0, angle=0, color="Grey", margin=0.0):
         self.color = color
+        self.model = model
+
+        # Data used to compute distances
+        self.angle = angle
         self.x = x - margin
         self.y = y - margin
         self.z = z
-        self.angle = angle
-        self.model = model
-        self.width = models[model]['x'] * UNIT_LENGTH + margin * 2
-        self.height = models[model]['y'] * UNIT_LENGTH + margin * 2
+
+        # in order to add a margin I have to enforce this distance to the sides.
+        # To be able to do that, the two origins have to have a distance
+        # equal to the diagonal of the square having a margin's size
+        # self.x = x - margin * math.sqrt(2) * math.cos(angle -3/4 * math.pi)
+        # self.y = y - margin * math.sqrt(2) * math.sin(angle -3/4 * math.pi)
+        # TODO: these commented coordinates work, but the collision algorithm doesn't
+        #       before activating them the algorithm has to be fixed
+
+        self.size = Size(
+            width  = Models[model].size.width  + margin * 2,
+            length = Models[model].size.length + margin * 2,
+            height = Models[model].size.height + margin * 2
+        )
 
         # ---- Set Pose ----
         self.pose = Pose()
@@ -43,14 +46,14 @@ class Block:
     def collides(self, other):
         x1 = self.x
         y1 = self.y
-        w1 = self.width
-        h1 = self.height
+        w1 = self.size.width
+        h1 = self.size.length
         A1 = self.angle
 
         x2 = other.x
         y2 = other.y
-        w2 = other.width
-        h2 = other.height
+        w2 = other.size.width
+        h2 = other.size.length
         A2 = other.angle
 
         w1H = w1 / 2
@@ -90,3 +93,6 @@ class Block:
 
         return x1 < bbx2 + bbw2 and x1 + w1 > bbx2 and y1 < bby2 + bbh2 and y1 + h1 > bby2 and \
                 x2 < bbx1 + bbw1 and x2 + w2 > bbx1 and y2 < bby1 + bbh1 and y2 + h2 > bby1
+    
+    def __str__(self):
+        return f'{self.model} at ({self.x}, {self.y}), angle = {math.degrees(self.angle)}° with size (width={self.size.width}, length={self.size.length}, height={self.size.height})'
