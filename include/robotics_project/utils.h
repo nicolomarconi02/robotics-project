@@ -22,6 +22,7 @@
 #define N_SEGMENTS 40
 #define STD_HEIGHT 0.5
 #define RADIUS_CIRCLE 0.35
+#define TOOL_SIZE 0.12
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
@@ -105,9 +106,12 @@ Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double,
                                                      const Eigen::Vector3d& initialPosition,
                                                      const Eigen::Quaterniond& initialQuaternion,
                                                      const Eigen::Vector3d& finalPosition,
-                                                     const Eigen::Quaterniond& finalQuaternion, const double& wt,
-                                                     const double& lambda0);
+                                                     const Eigen::Quaterniond& finalQuaternion, const double maxTime,
+                                                     const double& wt, const double& lambda0, int& singularities);
 
-void runOptimization(const Eigen::Vector3d& finalPosition, const Eigen::Matrix3d& finalRotationMatrix);
+PathRow moveRobotOptimization(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
+                              const Eigen::Vector3d& finalPosition, const Eigen::Quaterniond& finalQuaternion,
+                              const double& lambda0, const double& wt, int& singularities,
+                              const double maxTime = TOTAL_TIME);
 
 #endif

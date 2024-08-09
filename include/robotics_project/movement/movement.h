@@ -16,4 +16,6 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
 /* Interactions with main */
 robotics_project::MovementHandler::Response getResponse(Path movements);
 
+void runOptimization();
+
 #endif

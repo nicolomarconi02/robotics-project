@@ -41,7 +41,9 @@ int main(int argc, char **argv) {
        "X1-Y1-Z2", "X1-Y2-Z1",        "X1-Y2-Z2", "X1-Y2-Z2-CHAMFER", "X1-Y2-Z2-TWINFILLET",
        "X1-Y3-Z2", "X1-Y3-Z2-FILLET", "X1-Y4-Z1", "X1-Y4-Z2"};
    // for-each block, move
-   for (int i = 0; i < n_blocks; i++) {
+
+   static bool hasVisionFinished = false;
+   while (!hasVisionFinished) {
       // when the vision module is ready, uncomment this block
       // if (vision_client.call(vision_srv)) {
       //    world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
@@ -59,32 +61,34 @@ int main(int argc, char **argv) {
       //    continue;
       // }
       //////////////////////////////////
+      for (int i = 0; i < n_blocks; i++) {
+         // when the vision module is ready, comment this block
+         world_point = world_points.row(i);
+         block_id = blocks_id[i];
+         hasVisionFinished = true;
+         //////////////////////////////////
 
-      // when the vision module is ready, comment this block
-      world_point = world_points.row(i);
-      block_id = blocks_id[i];
-      //////////////////////////////////
-
-      srv.request.pose.position.x = world_point[0];
-      srv.request.pose.position.y = world_point[1];
-      srv.request.pose.position.z = world_point[2];
-      srv.request.pose.orientation.x = world_orientation.x();
-      srv.request.pose.orientation.y = world_orientation.y();
-      srv.request.pose.orientation.z = world_orientation.z();
-      srv.request.pose.orientation.w = world_orientation.w();
-      srv.request.block_id = block_id;
-      /* Import the required movements from the module */
-      if (service_client.call(srv)) {
-         movements = get_movements(srv.response);
-         if (movements.rows() <= 0) {
-            std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+         srv.request.pose.position.x = world_point[0];
+         srv.request.pose.position.y = world_point[1];
+         srv.request.pose.position.z = world_point[2];
+         srv.request.pose.orientation.x = world_orientation.x();
+         srv.request.pose.orientation.y = world_orientation.y();
+         srv.request.pose.orientation.z = world_orientation.z();
+         srv.request.pose.orientation.w = world_orientation.w();
+         srv.request.block_id = block_id;
+         /* Import the required movements from the module */
+         if (service_client.call(srv)) {
+            movements = get_movements(srv.response);
+            if (movements.rows() <= 0) {
+               std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+               continue;
+            }
+            std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
+            move(pub, movements);
+         } else {
+            std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
             continue;
          }
-         std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
-         move(pub, movements);
-      } else {
-         std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
-         continue;
       }
    }
 

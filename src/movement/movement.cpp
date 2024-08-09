@@ -1,15 +1,21 @@
 /* Header */
 #include "robotics_project/movement/movement.h"
 
+#include <fstream>
 #include <iostream>
 
 #include "ros/ros.h"
 
 int main(int argc, char **argv) {
    /* Initialize ROS node's name */
+   std::cout << "MOVEMENT HANDLER Process: STARTED" << std::endl;
+
+   // Uncomment to run optimization
+   // std::cout << "OPTIMIZATION FOR DIFFERENTIAL KINEMATICS" << std::endl;
+   // runOptimization();
+   ////////////////////////////////////////7
 
    ros::init(argc, argv, "robotics_project_movement_handler");
-   std::cout << "MOVEMENT HANDLER Process: STARTED" << std::endl;
 
    /* Define service server */
    ros::NodeHandle n;
@@ -29,6 +35,8 @@ bool movHandler(robotics_project::MovementHandler::Request &req, robotics_projec
    Eigen::Quaterniond rotationQuaternion(req.pose.orientation.w, req.pose.orientation.x, req.pose.orientation.y,
                                          req.pose.orientation.z);
    brickPosition = worldToBaseCoordinates(brickPosition);
+   brickPosition -= Eigen::Vector3d{0.0, 0.0, TOOL_SIZE};
+
    std::string blockId = req.block_id;
    Path movements = getPath(brickPosition, rotationQuaternion, blockId);
 
@@ -142,4 +150,129 @@ robotics_project::MovementHandler::Response getResponse(Path movements) {
       res.path.movements[i].data.assign(movements.row(i).begin(), movements.row(i).end());
 
    return res;
+}
+
+void runOptimization() {
+   std::ofstream file("optimization_results.txt", std::ios::app);
+   if (!file.is_open()) {
+      std::cerr << "Error opening file" << std::endl;
+      return;
+   }
+   Eigen::Matrix<double, 8, 1> initialJointConfiguration = Eigen::Matrix<double, 8, 1>{
+       -0.320096, -0.780249, -2.56081, -1.63051, -1.5705, 3.4911, -4.38614e-05, 7.69203e-06};
+   Eigen::Matrix<double, 9, 3> world_points{{1.0, 0.8, 1.025},     {1.0, 0.15, 1.225},     {0.0, 0.15, 1.225},
+                                            {0.0, 0.8, 1.025},     {-0.001, 0.055, 1.225}, {0.549, 0.089, 1.225},
+                                            {0.218, 0.649, 1.070}, {0.636, 0.5, 1.009},    {0.326, 0.307, 1.070}};
+   int n_blocks = world_points.rows();
+   Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
+   Eigen::Quaterniond rotation_quaternion(rotation_matrix);
+   std::vector<std::string> blocks_id{
+       "X1-Y1-Z2", "X1-Y2-Z1",        "X1-Y2-Z2", "X1-Y2-Z2-CHAMFER", "X1-Y2-Z2-TWINFILLET",
+       "X1-Y3-Z2", "X1-Y3-Z2-FILLET", "X1-Y4-Z1", "X1-Y4-Z2"};
+
+   struct movement_data {
+      double lamda0;
+      double wt;
+      double deltaPos;
+      int singularities;
+   };
+
+   std::vector<movement_data> movements_data;
+
+   for (int i = 0; i < 4; i++) {
+      std::cout << "i: " << i << std::endl;
+      std::cout << "BLOCK ID: " << blocks_id[i] << std::endl;
+      Eigen::Vector3d brickPosition = world_points.row(i);
+      std::string blockId = blocks_id[i];
+      brickPosition = worldToBaseCoordinates(brickPosition);
+      Eigen::Vector3d finalPosition = getFinalPosition(blockId);
+      if (finalPosition == Eigen::Vector3d::Zero()) {
+         ROS_ERROR("UNKNOWN BLOCK ID");
+         ROS_ERROR("STOPPING MOVEMENT");
+         continue;
+      }
+      Eigen::Matrix<double, 6, 1> initialJointState = initialJointConfiguration.head(6);
+      auto [initialPosition, Re, transformation_matrix] = directKinematics(initialJointState);
+      Eigen::Quaterniond initialOrientation(Re);
+      Eigen::Vector3d initialPositionStdHeight(initialPosition(0), initialPosition(1), STD_HEIGHT);
+      Eigen::Vector3d brickPositionStdHeight(brickPosition(0), brickPosition(1), STD_HEIGHT);
+      Eigen::Vector3d finalPositionStdHeight(finalPosition(0), finalPosition(1), STD_HEIGHT);
+      Eigen::Matrix3d finalRe{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
+      Eigen::Quaterniond finalRotationQuaternion(finalRe);
+
+      double currWt = 0.001;
+      double currLambda0 = 1e-8;
+      Eigen::Vector3d minDelta(1000.0, 1000.0, 1000.0);
+      double min = 1000.0;
+      int currSingularities = 0;
+      for (double lambda0 = 1e-8; lambda0 < 0.1e-4; lambda0 *= 10) {
+         for (double wt = 0.01; wt < 1.0; wt += 0.01) {
+            int singularities = 0;
+            std::cout << "lambda0: " << lambda0 << " wt: " << wt << std::endl;
+            PathRow path = moveRobotOptimization(initialJointConfiguration, initialPositionStdHeight,
+                                                 initialOrientation, lambda0, wt, singularities);
+            // MOVEMENT FROM INITIAL STANDARD HEIGHT POSITION TO BRICK STANDARD HEIGHT POSITION
+            Trajectory trajectoryInitialToBrick =
+                computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight);
+            for (int i = 0; i < trajectoryInitialToBrick.rows(); i++) {
+               auto jointConfiguration_i = path.row(path.rows() - 1);
+               path = moveRobotOptimization(jointConfiguration_i, trajectoryInitialToBrick.row(i), initialOrientation,
+                                            lambda0, wt, singularities, 1.0);
+            }
+            // OPEN GRIPPER
+            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN),
+                                         brickPositionStdHeight, initialOrientation, lambda0, wt, singularities);
+            // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
+            double graspingAngle = finalRotationQuaternion.z() + M_PI / 2;
+            Eigen::Matrix3d graspingRotationMatrix = rotationMatrixAroundZ(graspingAngle);
+            Eigen::Quaterniond graspingOrientation(graspingRotationMatrix);
+            path = moveRobotOptimization(path.row(path.rows() - 1), brickPosition, graspingOrientation, lambda0, wt,
+                                         singularities);
+            // CLOSE GRIPPER
+            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE), brickPosition,
+                                         graspingOrientation, lambda0, wt, singularities);
+
+            // MOVEMENT FROM BRICK POSITION TO BRICK STANDARD HEIGHT POSITION
+            path = moveRobotOptimization(path.row(path.rows() - 1), brickPositionStdHeight, graspingOrientation,
+                                         lambda0, wt, singularities);
+
+            // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO FINAL STANDARD HEIGHT POSITION
+            Trajectory trajectoryBrickToFinal =
+                computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight);
+            for (int i = 0; i < trajectoryBrickToFinal.rows(); i++) {
+               auto jointConfiguration_i = path.row(path.rows() - 1);
+               path = moveRobotOptimization(jointConfiguration_i, trajectoryBrickToFinal.row(i), initialOrientation,
+                                            lambda0, wt, singularities, 1.0);
+            }
+
+            // MOVEMENT FROM FINAL STANDARD HEIGHT POSITION TO FINAL POSITION
+            path = moveRobotOptimization(path.row(path.rows() - 1), finalPosition, finalRotationQuaternion, lambda0, wt,
+                                         singularities);
+
+            Eigen::Matrix<double, 6, 1> js = path.head(6);
+            auto [pe_i, Re_i, transformationMatrix_i] = directKinematics(js);
+            double tmp = (finalPosition - pe_i).norm();
+            if (tmp < min) {
+               min = tmp;
+               minDelta = finalPosition - pe_i;
+               currWt = wt;
+               currLambda0 = lambda0;
+               currSingularities = singularities;
+            }
+
+            // OPEN GRIPPER
+            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN),
+                                         finalPositionStdHeight, finalRotationQuaternion, lambda0, wt, singularities);
+         }
+      }
+      movements_data.push_back({currLambda0, currWt, minDelta.norm(), currSingularities});
+   }
+
+   for (auto data : movements_data) {
+      std::cout << "lambda0: " << data.lamda0 << " wt: " << data.wt << " deltaPos: " << data.deltaPos
+                << " singularities: " << data.singularities << std::endl;
+      file << "lambda0: " << data.lamda0 << " wt: " << data.wt << " deltaPos: " << data.deltaPos
+           << " singularities: " << data.singularities << std::endl;
+   }
+   file.close();
 }
