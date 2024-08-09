@@ -578,11 +578,13 @@ class VisionManagerClass():
         poses = []
         blocks_id = []
         n_blocks = len(self.blocks_to_take)
+        n_moved = np.int8(req.n_moved_blocks)
+        finished = len(Models) - (n_moved + n_blocks) == 0
 
         print(f'The blocks to be SENT are {n_blocks}, the following lines describe them')
 
         for block in self.blocks_to_take:
-            print(f'{block.id_class} with centre in ({block.mid[0]}, {block.mid[1]}) and an angle of {block.yaw}')
+            print(f'{block.yolo_prediction} with centre in ({block.mid[0]}, {block.mid[1]}) and an angle of {block.yaw}')
 
             pose = Pose()
 
@@ -598,11 +600,11 @@ class VisionManagerClass():
             pose.orientation.z = math.sin(block.yaw/2)
 
             poses.append(pose)
-            blocks_id.append(block.id_class)
+            blocks_id.append(block.yolo_prediction)
 
         print('VISION PROCESS: handle_obtain_blocks ENDED')
 
-        return GetBlocksResponse(poses, blocks_id, np.int8(n_blocks))
+        return GetBlocksResponse(poses, blocks_id, np.int8(n_blocks), finished)
 
 
 def main():

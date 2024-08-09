@@ -30,7 +30,7 @@ endif
 
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
-	@make manage_services
+	@make manage_services && make import_services
 
 build-proj:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH}

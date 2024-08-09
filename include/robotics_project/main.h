@@ -7,7 +7,7 @@
 #include "ros/ros.h"
 
 /* Number of blocks to be moved */
-#define N_BLOCKS 1
+#define N_BLOCKS 11
 // This data should be deducted from the vision's response
 
 /* MAIN functions */
