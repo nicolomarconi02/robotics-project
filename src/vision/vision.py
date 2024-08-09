@@ -196,6 +196,10 @@ class ZedBlock:
     def compute_mid(self):
         self.mid = (self.p1 + self.p2) / 2
 
+    def compute_mid_3d(self):
+        # the value 0.0095 is the height of the stud of the brick
+        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (Models[self.yolo_prediction].size.height-0.0095)/2)]                        
+
     def compute_yaw(self):
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
     
@@ -424,7 +428,9 @@ class VisionManagerClass():
                 \n   id: {block.yolo_prediction}\
                 ")
     
-       
+    #TABLE_HEIGHT 0.85
+    #mid[2]=0.0095*z+TABLE_HEIGHT
+
 
     def choose_good_objects(self):
         """
@@ -454,8 +460,7 @@ class VisionManagerClass():
                     block.yolo_prediction = self.yolo_blocks[block.yolo_bbox_id].obj_class
 
                     if block.yolo_confidence > 0.65:
-                        block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
-                        
+                        block.compute_mid_3d()
                         v1_norm = round(block.n1 / 0.031,0)
                         v2_norm = round(block.n2 / 0.031,0)
 
@@ -494,7 +499,7 @@ class VisionManagerClass():
                             block.v2 = block.p2 - block.vertex
                             block.n2 = round(np.linalg.norm(block.v2),3)
                             block.compute_mid()
-                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                            block.compute_mid_3d()
                             block.compute_yaw()
 
                             taken = True
@@ -508,7 +513,7 @@ class VisionManagerClass():
                             block.v1, block.v2 = exchange(block.v1, block.v2)
                             block.n1, block.n2 = exchange(block.n1, block.n2)
                             block.compute_mid()
-                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                            block.compute_mid_3d()
                             block.compute_yaw()
 
                             taken = True
@@ -525,19 +530,20 @@ class VisionManagerClass():
                         expected_min_size = min(expected_sizes.width, expected_sizes.length)
                         
                         if v1_norm == expected_max_size and v2_norm == expected_min_size:
-                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                            block.compute_mid_3d()
                             self.blocks_to_take.append(block)
                             taken = True
 
                     # If the object is taken, just pass this one
                     if taken:
+                        self.blocks_to_take.append(block)
                         return
                     
             # If nothing better was found, we return the block closer to the camera which was identified
             # from the model, using the z-value from the model
             if first_with_box != -1 :
                 block = self.zed_blocks[first_with_box]
-                block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                block.compute_mid_3d()
                 self.blocks_to_take.append(block)
                 print("Nothing better was found")
             else:
