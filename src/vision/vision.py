@@ -224,6 +224,10 @@ class VisionManagerClass():
         # Point cloud from ZED Node
         self.point_cloud2_msg = ros.wait_for_message("/ur5/zed_node/point_cloud/cloud_registered", PointCloud2)
         
+        self.zed_blocks = []
+        self.yolo_blocks = []
+        self.blocks_to_take = []
+
         # Make use of the image obtained
         self.digest_ZED_data(self.image_msg, self.point_cloud2_msg)
 
@@ -291,7 +295,11 @@ class VisionManagerClass():
                 else:
                     dic_3d_world[z] = [point[:2]]
 
-        data = np.array(dic_3d_world[BLOCK_LEVEL])
+        try:
+            data = np.array(dic_3d_world[BLOCK_LEVEL])
+        except KeyError:
+            print("No more blocks on the working table")
+            return
         
         # Dividing the points into cluster (Cluster Detection), where each cluster represents
         # a different lego brick, using DBSCAN
@@ -302,8 +310,7 @@ class VisionManagerClass():
             # Plot original data
             plt.scatter(data[:, 0], data[:, 1], c=labels)
 
-        # For each block, obtain three points: the vertex and the two extremities
-        list_of_blocks = []
+        # For each cluster create a ZedBlock
         for label in np.unique(labels):
             if label == -1:
                 continue  # Skip noise points
@@ -311,22 +318,22 @@ class VisionManagerClass():
             block = ZedBlock(cluster_points=data[labels == label])
             if PLOTH_GRAPHS:
                 block.plot()
-            list_of_blocks.append(block)
+            self.zed_blocks.append(block)
 
         # Sort the blocks detected via pointCloud for "accuracy", aka "how far away from 90° the angle between v1 and v2 is"
-        list_of_blocks = sorted(list_of_blocks, key=lambda block: block.accuracy)
+        self.zed_blocks = sorted(self.zed_blocks, key=lambda block: block.accuracy)
 
         if DEBUG:
-            for b in list_of_blocks:
+            for b in self.zed_blocks:
                 print(b)
         
         if PLOTH_GRAPHS:
             plt.xlabel('x')
-            plt.xlim(0, 1.0)
             plt.ylabel('y')
-            plt.ylim(0, 0.8)
             plt.axis('equal')
-            plt.gca().set_clip_on(True)
+            plt.gca().set_xlim([0,1.0])
+            plt.gca().set_ylim([0.15,0.8])
+            #plt.gca().set_clip_on(True)
             plt.gca().invert_yaxis()
             plt.gca().invert_xaxis()
             plt.savefig(f'{pointCloud_path}/2D_blocks.png')
@@ -359,14 +366,12 @@ class VisionManagerClass():
         from scipy.spatial import ConvexHull, Delaunay
 
         class YoloDetectionObj:
-            def __init__ (self, obj_class: int, confidence: float, delaunay: Delaunay, number):
+            def __init__ (self, obj_class: int, confidence: float, delaunay: Delaunay, id_box):
                 self.obj_class = obj_class
                 self.confidence = confidence
                 self.delaunay = delaunay
-                self.number = number
+                self.id_box = id_box
                 
-
-        yolo_blocks = []
         for prediction in predicted_objects:
             x1 = math.floor(prediction[0])
             y1 = math.floor(prediction[1]) 
@@ -388,8 +393,8 @@ class VisionManagerClass():
 
             # Create a Delaunay object to better manage the bbox area
             delaunay = Delaunay(borders_world)
-            block_detected = YoloDetectionObj(obj_name, confidence, delaunay, predicted_objects.index(prediction))
-            yolo_blocks.append(block_detected)
+            block_detected = YoloDetectionObj(obj_name, confidence, delaunay, predicted_objects.index(prediction)+1)
+            self.yolo_blocks.append(block_detected)
             
             if PLOTH_GRAPHS:
                 # Create a ConvexHull object to better represent the bbox area 
@@ -407,31 +412,46 @@ class VisionManagerClass():
         if PLOTH_GRAPHS:
             plt.savefig(f'{pointCloud_path}/2D_bboxes.png')
 
-        ###################### MERGE DEI RISULTATI #######################
-
-        # Merge of info taken from ObjectDetection with Yolo and analyzing Point Cloud
-
-        self.blocks_to_take = []
+        # Merge the info taken from the model and from the Point Cloud
+        self.choose_good_objects()
         print("Take:")
-        for block in list_of_blocks:
+        for block in self.blocks_to_take:
+            print(f"-> OBJECT {block.yolo_bbox_id + 1}\
+                \n   x: {block.mid[0]}\
+                \n   y: {block.mid[1]}\
+                \n   z: {block.mid[2]}\
+                \n   yaw: {block.yaw}\
+                \n   id: {block.yolo_prediction}\
+                ")
+    
+       
+
+    def choose_good_objects(self):
+        """
+        Algorithm that allows to merge the info obtained via the object detection made by the model and the point cloud info.
+        The blocks are chosen as follow:
+        #TODO
+        """
+
+        for block in self.zed_blocks:
 
             if block.mid is not None:
                 discard = False
                 
-                for bbox in yolo_blocks:
+                for bbox in self.yolo_blocks:
                     if bbox.delaunay.find_simplex(block.mid) >= 0:
                         if discard:     # The block is inside multiple bounding boxes
                             block.yolo_bbox_id = None
                             break
                         else:
                             discard = True
-                            block.yolo_bbox_id = yolo_blocks.index(bbox)
+                            block.yolo_bbox_id = self.yolo_blocks.index(bbox)
                 
                 if block.yolo_bbox_id is not None:
                     
                     # Copy all the info in the ZedBlock object
-                    block.yolo_confidence = yolo_blocks[block.yolo_bbox_id].confidence
-                    block.yolo_prediction = yolo_blocks[block.yolo_bbox_id].obj_class
+                    block.yolo_confidence = self.yolo_blocks[block.yolo_bbox_id].confidence
+                    block.yolo_prediction = self.yolo_blocks[block.yolo_bbox_id].obj_class
 
                     if block.yolo_confidence > 0.65:
                         block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
@@ -446,26 +466,18 @@ class VisionManagerClass():
                         if v1_norm == expected_max_size and v2_norm == expected_min_size:
                             self.blocks_to_take.append(block)
 
-                            print(f"-> OBJECT {block.yolo_bbox_id + 1}\
-                                \n   x: {block.mid[0]}\
-                                \n   y: {block.mid[1]}\
-                                \n   z: {block.mid[2]}\
-                                \n   yaw: {block.yaw}\
-                                \n   id: {block.yolo_prediction}\
-                                ")  # value of bbox represented on 2D_bboxes.png
-
         first_with_box = -1
         if len(self.blocks_to_take) == 0:
             # the idea is: take only one block, the one that respects some pre-defined requisites
             # and is the closer to the zed camera (the vertex has a smaller x as possible)
 
             # Order the blocks for x closer to 0
-            list_of_blocks = sorted(list_of_blocks, key=lambda block: block.vertex[0])
-            for block in list_of_blocks:
+            self.zed_blocks = sorted(self.zed_blocks, key=lambda block: block.vertex[0])
+            for block in self.zed_blocks:
                 if block.yolo_bbox_id is not None:
                     taken = False
                     if first_with_box<0 :
-                        first_with_box = list_of_blocks.index(block)
+                        first_with_box = self.zed_blocks.index(block)
 
                     if block.n2 == 0:
                         # The ZedCamera sees only one side, therefore we have to see whether this side matches
@@ -513,41 +525,30 @@ class VisionManagerClass():
                         expected_min_size = min(expected_sizes.width, expected_sizes.length)
                         
                         if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
                             self.blocks_to_take.append(block)
                             taken = True
 
                     # If the object is taken, just pass this one
                     if taken:
-                        print("...Only one this time...")
-                        self.blocks_to_take.append(block)
-                        print(f"-> OBJECT {block.yolo_bbox_id + 1}\
-                                \n   x: {block.mid[0]}\
-                                \n   y: {block.mid[1]}\
-                                \n   z: {block.mid[2]}\
-                                \n   yaw: {block.yaw}\
-                                \n   id: {block.yolo_prediction}\
-                                ")
                         return
                     
             # If nothing better was found, we return the block closer to the camera which was identified
             # from the model, using the z-value from the model
-            block = list_of_blocks[first_with_box]
-            block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
-            self.blocks_to_take.append(block)
-            print("Nothing better was found")
-            print(f"-> OBJECT {block.yolo_bbox_id + 1}\
-                                \n   x: {block.mid[0]}\
-                                \n   y: {block.mid[1]}\
-                                \n   z: {block.mid[2]}\
-                                \n   yaw: {block.yaw}\
-                                \n   id: {block.yolo_prediction}\
-                                ")
-                    
-        return  
-    
+            if first_with_box != -1 :
+                block = self.zed_blocks[first_with_box]
+                block.mid = [block.mid[0], block.mid[1], (TABLE_HEIGHT + Models[block.yolo_prediction].size.height/2)]
+                self.blocks_to_take.append(block)
+                print("Nothing better was found")
+            else:
+                # We still have one or more block on the working-table, but these are not detecteed by the model
+                #TODO: is it really necessary to implement this case?
+                pass
 
-    #TODO: manca da gestire i blocchi posti in alto a destra (nel plot dei blocchi), ovvero quei blocchi che, se
-    #presentano una certa angolazione, il vertex non viene posizionato nel posto giusto
+        #TODO: manca da gestire i blocchi posti in alto a destra (nel plot dei blocchi), ovvero quei blocchi che, se
+        #presentano una certa angolazione, il vertex non viene posizionato nel posto giusto
+
+        return
 
     def start_service(self):
         # Service's definition and its handler's setting
