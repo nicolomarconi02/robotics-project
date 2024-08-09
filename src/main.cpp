@@ -55,6 +55,8 @@ int main(int argc, char **argv) {
       //                           vision_srv.response.poses[i].orientation.z);
       //    block_id = vision_srv.response.blocks_id[i];
       //    n_blocks = vision_srv.response.n_blocks;
+      //    std::cout << "Block center (" << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ")"
+      //              << std::endl;
       //    std::cout << "MAIN Process: Transmitting block " << block_id << " | block " << i << std::endl;
       // } else {
       //    std::cerr << "MAIN Process: Failed to call the VISION module | block " << i << std::endl;

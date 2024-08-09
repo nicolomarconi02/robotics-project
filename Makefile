@@ -8,6 +8,7 @@ BUILD_COMMAND=catkin_make
 INCLUDE_SERVICE_PATH_ORIGIN=${WORKSPACE_PATH}/devel/include/${PROJECT_NAME}/
 INCLUDE_SERVICE_PATH_DESTINATION=generated/${PROJECT_NAME}/
 LOCOSIM_PATH=${WORKSPACE_PATH}/src/locosim
+PROJECT_PATH=${WORKSPACE_PATH}/src/robotics-project
 DEPENDENCIES_PATH=${WORKSPACE_PATH}/src/robotics-project/dependencies
 
 TOTAL_SRV_MSG_FILES=$(shell echo $$(( "$(shell ls srv | wc -l) * 3 + $(shell ls msg | wc -l)" )))
@@ -18,6 +19,14 @@ MSGS=$(shell ls msg -1 | rev | cut -f 2- -d "." | rev)
 
 SOURCE=source ${WORKSPACE_PATH}/devel/setup.bash
 EXEC_ROBOT=python3 -i ${LOCOSIM_DIR}/robot_control/base_controllers/ur5_generic.py
+
+# position-blocks arguments
+ifeq (position-blocks,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "run"
+  POSITION_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(POSITION_ARGS):;@:)
+endif
 
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
@@ -50,17 +59,20 @@ run-vision: camera-rolls predictions
 run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
-run-robot: world-setup
+run-robot: copy-models
 	@${SOURCE} && ${EXEC_ROBOT}
 
 graph:
 	@rosrun rqt_graph rqt_graph
 
-world-setup: position-blocks
-	@bash src/world/setup.bash
+copy-models:
+	@cp -r ${PROJECT_PATH}/models/. ${LOCOSIM_PATH}/ros_impedance_controller/worlds/models
 
 position-blocks:
-	@python3 src/world/position-blocks.py
+	@python3 src/world/spawner.py ${POSITION_ARGS}
+
+delete-blocks:
+	@python3 src/world/deleter.py
 
 camera-rolls:
 	@mkdir camera-rolls

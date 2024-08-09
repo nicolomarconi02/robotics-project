@@ -1,0 +1,5 @@
+# these need to be installed manually with `python3 -m pip install -r requirements.txt`
+numpy
+matplotlib
+scipy 
+scikit-learn

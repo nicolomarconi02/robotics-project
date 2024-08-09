@@ -32,6 +32,12 @@ make run-robot
 
 Running the robot closes every instance of **rosmaster** and opens a new one, so it is not necessary to run the **roscore** in a seperate terminal.
 
+Inside another terminal you have to execute
+```
+make position-blocks
+```
+So that the blocks get positioned in the table. Execute `make delete-blocks` to remove them.
+
 ### Start the Movement Handler server
 Execute
 ```
