@@ -197,8 +197,8 @@ class ZedBlock:
         self.mid = (self.p1 + self.p2) / 2
 
     def compute_mid_3d(self):
-        # the value 0.0095 is the height of the stud of the brick
-        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (Models[self.yolo_prediction].size.height-0.0095)/2)]                        
+        # 0.019 is the height of the rectangular base of a Z1-block (meaning a Z2 block is 0.019*2)
+        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (0.019*Models[self.yolo_prediction].size.height)/2)]                        
 
     def compute_yaw(self):
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
