@@ -17,6 +17,12 @@ class GenerationLimits:
     angle: Range
 
 @dataclass
+class Cfr:
+    x: float
+    y: float
+    r: float
+
+@dataclass
 class Size:
     width: float
     length: float
