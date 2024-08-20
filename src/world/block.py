@@ -11,17 +11,13 @@ class Block:
 
         # Data used to compute distances
         self.angle = angle
-        self.x = x - margin
-        self.y = y - margin
-        self.z = z
 
         # in order to add a margin I have to enforce this distance to the sides.
         # To be able to do that, the two origins have to have a distance
         # equal to the diagonal of the square having a margin's size
-        # self.x = x - margin * math.sqrt(2) * math.cos(angle -3/4 * math.pi)
-        # self.y = y - margin * math.sqrt(2) * math.sin(angle -3/4 * math.pi)
-        # TODO: these commented coordinates work, but the collision algorithm doesn't
-        #       before activating them the algorithm has to be fixed
+        self.x = x + margin * math.sqrt(2) * math.cos(angle -3/4 * math.pi)
+        self.y = y + margin * math.sqrt(2) * math.sin(angle -3/4 * math.pi)
+        self.z = z
 
         self.size = Size(
             width  = Models[model].size.width  + margin * 2,
@@ -33,9 +29,9 @@ class Block:
         self.pose = Pose()
 
         # position
-        self.pose.position.x = x
-        self.pose.position.y = y
-        self.pose.position.z = z
+        self.pose.position.x = self.x
+        self.pose.position.y = self.y
+        self.pose.position.z = self.z
 
         # quaternion
         self.pose.orientation.w = math.cos(angle/2)
@@ -44,6 +40,29 @@ class Block:
         self.pose.orientation.z = math.sin(angle/2)
 
     def collides(self, other):
+
+        def getCenter(self):
+            xc = self.x + self.size.width / 2 * math.cos(self.angle) - self.size.length / 2 * math.sin(self.angle)
+            yc = self.y + self.size.length / 2 * math.cos(self.angle) + self.size.width / 2 * math.sin(self.angle)
+            return xc, yc
+
+        def getDiag(self):
+            return math.sqrt(math.pow(self.size.width,2) + math.pow(self.size.length,2))
+        
+        xc1, yc1 = getCenter(self)
+        xc2, yc2 = getCenter(other)
+
+        # the minimum distance is the sum of the two diagonals (circle distance)
+        min_distance = (getDiag(self) + getDiag(other)) / 2
+        # the actual distance (euclidean) is the one between the rectangles' centers
+        actual_distance = math.sqrt(math.pow((xc1 - xc2),2) + math.pow((yc1 - yc2),2))
+
+        return actual_distance < min_distance
+
+        
+
+
+    def collidesUnused(self, other):
         x1 = self.x
         y1 = self.y
         w1 = self.size.width
