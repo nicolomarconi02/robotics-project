@@ -5,6 +5,7 @@ import math
 import os
 import sys
 import random
+import pickle
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
@@ -109,6 +110,11 @@ class Spawner():
 
             #display plot
             plt.show()
+        
+        # serialization
+        f = open('spawned.pickle', 'wb')
+        pickle.dump(final_blocks, f)
+        f.close()
 
 
 def main():

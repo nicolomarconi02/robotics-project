@@ -1,8 +1,13 @@
 from geometry_msgs.msg import Pose
 import math
-import os
-import re
-from world import Models, Size
+from world import Models, Size, TABLE_HEIGHT
+from dataclasses import dataclass
+
+@dataclass
+class Coord:
+    x: float
+    y: float
+    z: float
 
 class Block:
     def __init__(self, model, x=0, y=0, z=0, angle=0, color="Grey", margin=0.0):
@@ -25,6 +30,13 @@ class Block:
             height = Models[model].size.height + margin * 2
         )
 
+        # ---- Set Center -----
+        self.center = Coord(
+            x = self.x + self.size.width / 2 * math.cos(self.angle) - self.size.length / 2 * math.sin(self.angle), 
+            y = self.y + self.size.length / 2 * math.cos(self.angle) + self.size.width / 2 * math.sin(self.angle), 
+            z = TABLE_HEIGHT + self.size.height / 2
+        )
+
         # ---- Set Pose ----
         self.pose = Pose()
 
@@ -41,16 +53,11 @@ class Block:
 
     def collides(self, other):
 
-        def getCenter(self):
-            xc = self.x + self.size.width / 2 * math.cos(self.angle) - self.size.length / 2 * math.sin(self.angle)
-            yc = self.y + self.size.length / 2 * math.cos(self.angle) + self.size.width / 2 * math.sin(self.angle)
-            return xc, yc
-
         def getDiag(self):
             return math.sqrt(math.pow(self.size.width,2) + math.pow(self.size.length,2))
         
-        xc1, yc1 = getCenter(self)
-        xc2, yc2 = getCenter(other)
+        xc1, yc1 = [self.center.x, self.center.y]
+        xc2, yc2 = [other.center.x, other.center.y]
 
         # the minimum distance is the sum of the two diagonals (circle distance)
         min_distance = (getDiag(self) + getDiag(other)) / 2

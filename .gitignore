@@ -6,3 +6,5 @@ camera-rolls
 predictions
 
 __pycache__/
+
+*.pickle

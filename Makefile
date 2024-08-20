@@ -55,6 +55,9 @@ run-movement:
 run-vision: camera-rolls predictions
 	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision.py
 
+run-vision-test-robot: camera-rolls predictions
+	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision-test-robot.py
+
 run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
