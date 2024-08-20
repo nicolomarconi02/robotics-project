@@ -18,7 +18,6 @@ SERVICES=$(shell ls srv -1 | rev | cut -f 2- -d "." | rev)
 MSGS=$(shell ls msg -1 | rev | cut -f 2- -d "." | rev)
 
 SOURCE=source ${WORKSPACE_PATH}/devel/setup.bash
-EXEC_ROBOT=python3 -i ${LOCOSIM_DIR}/robot_control/base_controllers/ur5_generic.py
 
 # position-blocks arguments
 ifeq (position-blocks,$(firstword $(MAKECMDGOALS)))
@@ -60,7 +59,13 @@ run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
 run-robot: copy-models
-	@${SOURCE} && ${EXEC_ROBOT}
+	@${SOURCE} && make -j exec-robot robot-ready-manager
+
+exec-robot:
+	@python3 src/world/exec-robot.py
+
+robot-ready-manager:
+	@python3 src/world/robot-ready-manager.py
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -87,6 +92,7 @@ predictions:
 	import_services
 	world-setup
 	position-blocks
+	exec-robot
 	run-movement
 	run-client
 	run-robot
