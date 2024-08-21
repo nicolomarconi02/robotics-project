@@ -62,7 +62,10 @@ class VisionManagerClass():
             pose.position.z = block.center.z
             
             # quaternion
-            pose.orientation = block.pose.orientation
+            pose.orientation.w = math.cos((block.angle)/2)
+            pose.orientation.x = 0.0
+            pose.orientation.y = 0.0
+            pose.orientation.z = math.sin((block.angle)/2)
 
             poses.append(pose)
             blocks_id.append(block.model)

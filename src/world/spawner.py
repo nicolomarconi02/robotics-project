@@ -8,7 +8,7 @@ import random
 import pickle
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Circle
+from matplotlib.patches import Rectangle, Circle, Arrow
 
 from block import Block
 from world import Range, GenerationLimits, Cfr
@@ -122,11 +122,17 @@ class Spawner():
             ax.add_patch(Circle((Spawner.ARM_AREA.x, Spawner.ARM_AREA.y), Spawner.ARM_AREA.r,
                                 hatch="///"))
 
-            #add rectangle to plot
+            #add blocks and their margins to the plot
             for a in final_blocks:
                 ax.add_patch(Rectangle((a.x, a.y), a.size.width, a.size.length, 
                                 angle=math.degrees(a.angle),
                                 color='red'))
+                ax.add_patch(Circle((a.x, a.y), 0.005,
+                                color='blue'))
+                ax.add_patch(Circle((a.center.x, a.center.y), 0.005,
+                                color='green'))
+                ax.add_patch(Arrow(x=a.x, y=a.y, dx=(0.06 * math.cos(a.angle)), dy=(0.06 * math.sin(a.angle)),
+                                color='green', width=0.03))
             for b in margins:
                 ax.add_patch(Rectangle((b.x, b.y), b.size.width, b.size.length, 
                                 angle=math.degrees(b.angle),
