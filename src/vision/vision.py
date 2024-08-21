@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from ctypes import * # convert float to uint32
 
 import math
+import time
+import threading
 
 from robotics_project_vision import plot_points
 from robotics_project_vision import object_detection as vision
@@ -252,17 +254,15 @@ class VisionManagerClass():
             Nothing as now
         """
 
-        # convert received image (bgr8 format) to a cv2 image
-        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
         imgName = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        #print(imgName)
-        cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
+        # starting object detection's thread
+        threadObjDetection = threading.Thread(target=self.object_detection, args=(imgName,image))
+        threadObjDetection.start()
 
 
         ################ POINT CLOUD ################
 
-        import time
         print("> POINT CLOUD PROCESS: STARTED")
         start_time = time.time()
 
@@ -346,18 +346,8 @@ class VisionManagerClass():
         print(f"< POINT CLOUD PROCESS: ENDED after {end_time-start_time}")
         
 
-
-        ###################### OBJECT DETECTION #######################
-        
-        print("> OBJECT DETECTION PROCESS: STARTED")
-        start_time = time.time()
-
-        # predict with the object-detection model
-        prediction_path = f"predictions/{imgName}/yoloV8"
-        predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, bottom_crop=130, print_to_console=False)
-
-        end_time = time.time()
-        print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
+        # waiting for object detection's thread
+        threadObjDetection.join()
 
 
         ###################### BBOX IN GRAFICO 2D #######################
@@ -376,7 +366,7 @@ class VisionManagerClass():
                 self.delaunay = delaunay
                 self.id_box = id_box
                 
-        for prediction in predicted_objects:
+        for prediction in self.predicted_objects:
             x1 = math.floor(prediction[0])
             y1 = math.floor(prediction[1]) 
             x2 = math.floor(prediction[2])
@@ -397,7 +387,7 @@ class VisionManagerClass():
 
             # Create a Delaunay object to better manage the bbox area
             delaunay = Delaunay(borders_world)
-            block_detected = YoloDetectionObj(obj_name, confidence, delaunay, predicted_objects.index(prediction)+1)
+            block_detected = YoloDetectionObj(obj_name, confidence, delaunay, self.predicted_objects.index(prediction)+1)
             self.yolo_blocks.append(block_detected)
             
             if PLOTH_GRAPHS:
@@ -411,7 +401,7 @@ class VisionManagerClass():
                 # Calculate the centroid of the Convex Hull to print the object number inside
                 hull_points = borders_world[hull.vertices]
                 centroid = np.mean(hull_points, axis=0)
-                plt.text(centroid[0], centroid[1], predicted_objects.index(prediction)+1, fontsize=12, ha='center', va='center', color='grey', alpha=0.3)
+                plt.text(centroid[0], centroid[1], self.predicted_objects.index(prediction)+1, fontsize=12, ha='center', va='center', color='grey', alpha=0.3)
 
         if PLOTH_GRAPHS:
             plt.savefig(f'{pointCloud_path}/2D_bboxes.png')
@@ -431,6 +421,23 @@ class VisionManagerClass():
     #TABLE_HEIGHT 0.85
     #mid[2]=0.0095*z+TABLE_HEIGHT
 
+    def object_detection(self, imgName: str, image: Image):
+
+        # convert received image (bgr8 format) to a cv2 image
+        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
+        cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
+
+        ###################### OBJECT DETECTION #######################
+        
+        print("> OBJECT DETECTION PROCESS: STARTED")
+        start_time = time.time()
+
+        # predict with the object-detection model
+        prediction_path = f"predictions/{imgName}/yoloV8"
+        self.predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, bottom_crop=130, print_to_console=False)
+
+        end_time = time.time()
+        print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
 
     def choose_good_objects(self):
         """
