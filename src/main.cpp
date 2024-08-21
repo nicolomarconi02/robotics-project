@@ -45,53 +45,53 @@ int main(int argc, char **argv) {
    static bool hasVisionFinished = false;
    for (int8_t moved = 0; !hasVisionFinished; moved++) {
       // when the vision module is ready, uncomment this block
-      for (int i = 0; i < n_blocks; i++) {
-         vision_srv.request.n_moved_blocks = moved;
-         if (vision_client.call(vision_srv)) {
+      vision_srv.request.n_moved_blocks = moved;
+      if (vision_client.call(vision_srv)) {
+         n_blocks = vision_srv.response.n_blocks;
+         hasVisionFinished = vision_srv.response.finished;
+         for (int i = 0; i < n_blocks; i++) {
             world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
                 vision_srv.response.poses[i].position.z;
             world_orientation = Eigen::Quaterniond(
                 vision_srv.response.poses[i].orientation.w, vision_srv.response.poses[i].orientation.x,
                 vision_srv.response.poses[i].orientation.y, vision_srv.response.poses[i].orientation.z);
             block_id = vision_srv.response.blocks_id[i];
-            n_blocks = vision_srv.response.n_blocks;
-            hasVisionFinished = vision_srv.response.finished;
-            std::cout << "Block center (" << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ")"
-                      << std::endl;
-            std::cout << "MAIN Process: Transmitting block " << block_id << " | block " << i << std::endl;
-         } else {
-            std::cerr << "MAIN Process: Failed to call the VISION module | block " << i << std::endl;
-            continue;
-         }
-         //////////////////////////////////
-         // when the vision module is ready, comment this block
-         // world_point = world_points.row(i);
-         // block_id = blocks_id[i];
-         // hasVisionFinished = true;
-         //////////////////////////////////
+            std::cout << "MAIN Process: Transmitting block " << i << " of type " << block_id << " and centered in ("
+                      << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ")" << std::endl;
 
-         srv.request.pose.position.x = world_point[0];
-         srv.request.pose.position.y = world_point[1];
-         srv.request.pose.position.z = world_point[2];
-         srv.request.pose.orientation.x = world_orientation.x();
-         srv.request.pose.orientation.y = world_orientation.y();
-         srv.request.pose.orientation.z = world_orientation.z();
-         srv.request.pose.orientation.w = world_orientation.w();
-         srv.request.block_id = block_id;
-         /* Import the required movements from the module */
-         if (service_client.call(srv)) {
-            movements = get_movements(srv.response);
-            if (movements.rows() <= 0) {
-               std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+            // Block transmission to movement module
+            srv.request.pose.position.x = world_point[0];
+            srv.request.pose.position.y = world_point[1];
+            srv.request.pose.position.z = world_point[2];
+            srv.request.pose.orientation.x = world_orientation.x();
+            srv.request.pose.orientation.y = world_orientation.y();
+            srv.request.pose.orientation.z = world_orientation.z();
+            srv.request.pose.orientation.w = world_orientation.w();
+            srv.request.block_id = block_id;
+            /* Import the required movements from the module */
+            if (service_client.call(srv)) {
+               movements = get_movements(srv.response);
+               if (movements.rows() <= 0) {
+                  std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+                  continue;
+               }
+               std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
+               move(pub, movements);
+            } else {
+               std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
                continue;
             }
-            std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
-            move(pub, movements);
-         } else {
-            std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
-            continue;
          }
+      } else {
+         std::cerr << "MAIN Process: Failed to call the VISION module | block " << moved << std::endl;
+         continue;
       }
+      //////////////////////////////////
+      // when the vision module is ready, comment this block
+      // world_point = world_points.row(i);
+      // block_id = blocks_id[i];
+      // hasVisionFinished = true;
+      //////////////////////////////////
    }
 
    std::cout << "MAIN Process: ENDED" << std::endl;
