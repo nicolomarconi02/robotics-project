@@ -424,7 +424,7 @@ class VisionManagerClass():
     def object_detection(self, imgName: str, image: Image):
 
         # convert received image (bgr8 format) to a cv2 image
-        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
+        image_cv2 = self.get_image(image)
         cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
         ###################### OBJECT DETECTION #######################
@@ -438,6 +438,29 @@ class VisionManagerClass():
 
         end_time = time.time()
         print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
+
+    def get_image(self, image: Image):
+        """ 
+        This function removes all unwanted factors from the image, such as the background, the table shape and the shadows 
+        """
+
+        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
+
+        hsv = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2HSV)
+
+        mask = cv2.inRange(hsv, (0, 0, 100), (255, 5, 255))
+
+        # Build mask of non black pixels.
+        nzmask = cv2.inRange(hsv, (0, 0, 5), (255, 255, 255))
+
+        # Erode the mask - all pixels around a black pixels should not be masked.
+        nzmask = cv2.erode(nzmask, np.ones((3,3)))
+
+        mask = mask & nzmask
+
+        image_cv2[np.where(mask)] = 255
+
+        return image_cv2
 
     def choose_good_objects(self):
         """
