@@ -37,12 +37,15 @@ class Block:
             z = TABLE_HEIGHT + Models[model].factor.height * 0.019 / 2
         )
 
+        # Vertexes
+        self.vertexes = self.get_vertexes()
+
         # ---- Set Pose ----
         self.pose = Pose()
 
         # position
-        self.pose.position.x = self.x
-        self.pose.position.y = self.y
+        self.pose.position.x = self.center.x
+        self.pose.position.y = self.center.y
         self.pose.position.z = self.z
 
         # quaternion
@@ -50,6 +53,42 @@ class Block:
         self.pose.orientation.x = 0.0
         self.pose.orientation.y = 0.0
         self.pose.orientation.z = math.sin(angle/2)
+
+    
+    def get_vertexes(self):
+        cx, cy, z = [self.center.x, self.center.y, self.center.z]
+        w, l = [self.size.width, self.size.length]
+        ca, sa = [math.cos(self.angle), math.sin(self.angle)]
+
+        vertexes = []
+
+        # top right vertex
+        vertexes.append(Coord(
+            cx + w/2 * ca - l/2 * sa,
+            cy + w/2 * sa + l/2 * ca,
+            z
+        ))
+        # top left vertex
+        vertexes.append(Coord(
+            cx - w/2 * ca - l/2 * sa,
+            cy - w/2 * sa + l/2 * ca,
+            z
+        ))
+        # bottom left vertex
+        vertexes.append(Coord(
+            cx - w/2 * ca + l/2 * sa,
+            cy - w/2 * sa - l/2 * ca,
+            z
+        ))
+        # bottom left vertex
+        vertexes.append(Coord(
+            cx + w/2 * ca + l/2 * sa,
+            cy + w/2 * sa - l/2 * ca,
+            z
+        ))
+        
+        return vertexes
+  
 
     def collides(self, other):
 
@@ -65,8 +104,6 @@ class Block:
         actual_distance = math.sqrt(math.pow((xc1 - xc2),2) + math.pow((yc1 - yc2),2))
 
         return actual_distance < min_distance
-
-        
 
 
     def collidesUnused(self, other):
