@@ -80,7 +80,11 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    insertPath(path,
               moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), brickPositionStdHeight, Re));
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
-   double graspingAngle = brickOrientation.z() + M_PI / 2;
+
+   // Compute radiant angle
+   double angle = std::acos(brickOrientation.z()) * 2;
+
+   double graspingAngle = angle + M_PI / 2;
    Eigen::Matrix3d graspingRotationMatrix = rotationMatrixAroundZ(graspingAngle);
    Eigen::Quaterniond graspingOrientation(graspingRotationMatrix);
    insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, graspingOrientation));
