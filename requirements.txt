@@ -1,5 +1,7 @@
 # these need to be installed manually with `python3 -m pip install -r requirements.txt`
 numpy
-matplotlib
-scipy 
+matplotlib==3.4
+scipy==1.5.0
 scikit-learn
+torch==2.4.0
+ultralytics
