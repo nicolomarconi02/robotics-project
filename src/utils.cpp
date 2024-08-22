@@ -309,6 +309,9 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    Trajectory trajectory;
    insertTrajectory(trajectory, initialPosOnCircle);
    for (int i = indexInitial; i != indexFinal; i = (i + increment) % N_SEGMENTS) {
+      if (i < 0) {
+         i = N_SEGMENTS - 1;
+      }
       insertTrajectory(trajectory, pointsOnCircle.row(i));
    }
    insertTrajectory(trajectory, finalPosOnCircle);
@@ -323,13 +326,13 @@ Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& joi
    switch (state) {
       case GripperState_::CLOSE:
          // ROS_INFO("CLOSING GRIPPER");
-         jointConfigurationCopy(6) = -0.5;
-         jointConfigurationCopy(7) = -0.5;
+         jointConfigurationCopy(6) = CLOSE_GRIPPER_ANGLE;
+         jointConfigurationCopy(7) = CLOSE_GRIPPER_ANGLE;
          break;
       case GripperState_::OPEN:
          // ROS_INFO("OPENING GRIPPER");
-         jointConfigurationCopy(6) = 1.5;
-         jointConfigurationCopy(7) = 1.5;
+         jointConfigurationCopy(6) = OPEN_GRIPPER_ANGLE;
+         jointConfigurationCopy(7) = OPEN_GRIPPER_ANGLE;
          break;
       default:
          ROS_WARN("UNKNOWN GRIPPER STATE");

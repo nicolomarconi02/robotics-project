@@ -22,7 +22,9 @@
 #define N_SEGMENTS 40
 #define STD_HEIGHT 0.5
 #define RADIUS_CIRCLE 0.35
-#define TOOL_SIZE 0.12
+#define TOOL_SIZE 0.125
+#define CLOSE_GRIPPER_ANGLE 0.0
+#define OPEN_GRIPPER_ANGLE 2.0
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
