@@ -26,7 +26,7 @@ from geometry_msgs.msg import Pose
 
 import sys
 sys.path.append("src/world")
-from world import Models, TABLE_HEIGHT
+from world import Models, TABLE_HEIGHT, UNIT_HEIGHT
 
 # una volta effettuate delle modifiche non è necessario buildare nuovamente
 # il progetto, almeno che non si debbano cambiare gli import
@@ -199,8 +199,7 @@ class ZedBlock:
         self.mid = (self.p1 + self.p2) / 2
 
     def compute_mid_3d(self):
-        # 0.019 is the height of the rectangular base of a Z1-block (meaning a Z2 block is 0.019*2)
-        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (0.019*Models[self.yolo_prediction].factor.height)/2)]                        
+        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (UNIT_HEIGHT*Models[self.yolo_prediction].factor.height)/2)]                        
 
     def compute_yaw(self):
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
@@ -417,9 +416,6 @@ class VisionManagerClass():
                 \n   yaw: {block.yaw}\
                 \n   id: {block.yolo_prediction}\
                 ")
-    
-    #TABLE_HEIGHT 0.85
-    #mid[2]=0.0095*z+TABLE_HEIGHT
 
     def object_detection(self, imgName: str, image: Image):
 
@@ -470,36 +466,35 @@ class VisionManagerClass():
         """
 
         for block in self.zed_blocks:
+            
+            discard = False
+            
+            for bbox in self.yolo_blocks:
+                if bbox.delaunay.find_simplex(block.mid) >= 0:
+                    if discard:     # The block is inside multiple bounding boxes
+                        block.yolo_bbox_id = None
+                        break
+                    else:
+                        discard = True
+                        block.yolo_bbox_id = self.yolo_blocks.index(bbox)
+            
+            if block.yolo_bbox_id is not None:
+                
+                # Copy all the info in the ZedBlock object
+                block.yolo_confidence = self.yolo_blocks[block.yolo_bbox_id].confidence
+                block.yolo_prediction = self.yolo_blocks[block.yolo_bbox_id].obj_class
 
-            if block.mid is not None:
-                discard = False
-                
-                for bbox in self.yolo_blocks:
-                    if bbox.delaunay.find_simplex(block.mid) >= 0:
-                        if discard:     # The block is inside multiple bounding boxes
-                            block.yolo_bbox_id = None
-                            break
-                        else:
-                            discard = True
-                            block.yolo_bbox_id = self.yolo_blocks.index(bbox)
-                
-                if block.yolo_bbox_id is not None:
+                if block.yolo_confidence > 0.65:
+                    block.compute_mid_3d()
+                    v1_norm = round(block.n1 / 0.031,0)
+                    v2_norm = round(block.n2 / 0.031,0)
+
+                    expected_sizes = Models[block.yolo_prediction].factor
+                    expected_max_size = max(expected_sizes.width, expected_sizes.length)
+                    expected_min_size = min(expected_sizes.width, expected_sizes.length)
                     
-                    # Copy all the info in the ZedBlock object
-                    block.yolo_confidence = self.yolo_blocks[block.yolo_bbox_id].confidence
-                    block.yolo_prediction = self.yolo_blocks[block.yolo_bbox_id].obj_class
-
-                    if block.yolo_confidence > 0.65:
-                        block.compute_mid_3d()
-                        v1_norm = round(block.n1 / 0.031,0)
-                        v2_norm = round(block.n2 / 0.031,0)
-
-                        expected_sizes = Models[block.yolo_prediction].factor
-                        expected_max_size = max(expected_sizes.width, expected_sizes.length)
-                        expected_min_size = min(expected_sizes.width, expected_sizes.length)
-                        
-                        if v1_norm == expected_max_size and v2_norm == expected_min_size:
-                            self.blocks_to_take.append(block)
+                    if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                        self.blocks_to_take.append(block)
 
         first_with_box = -1
         if len(self.blocks_to_take) == 0:
@@ -549,7 +544,7 @@ class VisionManagerClass():
                             taken = True
 
                     else:
-                        # If the block is not a one-detecteed-side one, then we could check if the model
+                        # If the block is not a one-detected-side one, then we could check if the model
                         # predicted the right sides' length
 
                         v1_norm = round(block.n1 / 0.031,0)

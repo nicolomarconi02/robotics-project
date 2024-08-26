@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass
 
 UNIT_LENGTH = 0.031
+UNIT_HEIGHT = 0.019
 TABLE_HEIGHT = 0.87
 
 @dataclass
