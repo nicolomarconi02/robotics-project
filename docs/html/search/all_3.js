@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['calculatedampedpseudoinverse_10',['calculateDampedPseudoInverse',['../utils_8cpp.html#a81677a36a210c4ca6e8eff1bf189f31c',1,'utils.cpp']]],
+  ['calculatedampingfactor_11',['calculateDampingFactor',['../utils_8cpp.html#a339acd7aa61ecbeae47554dbdd8bd572',1,'utils.cpp']]],
+  ['calculatedeterminantjjt_12',['calculateDeterminantJJT',['../utils_8cpp.html#a10edaa07ab821ff31a68f5a747569f4c',1,'utils.cpp']]],
+  ['center_13',['center',['../classblock_1_1Block.html#a02389a9bda512aa8f8a3345f4fa27f25',1,'block::Block']]],
+  ['cfr_14',['Cfr',['../classworld_1_1Cfr.html',1,'world']]],
+  ['choose_5fgood_5fobjects_15',['choose_good_objects',['../classvision_1_1VisionManagerClass.html#ad5e8143d6b38742362e1c1176112aac6',1,'vision::VisionManagerClass']]],
+  ['cluster_5fpoints_16',['cluster_points',['../classvision_1_1ZedBlock.html#a317eb625ccf8953185d113c91eb6bdba',1,'vision::ZedBlock']]],
+  ['collides_17',['collides',['../classblock_1_1Block.html#a12e5bcb4fa4de9e94e9c8582674171d3',1,'block::Block']]],
+  ['collidesunused_18',['collidesUnused',['../classblock_1_1Block.html#aa3e14c7bb29206bbb583785a16c5acf9',1,'block::Block']]],
+  ['color_19',['color',['../classblock_1_1Block.html#a37dbdc30935031c05304482e1be89d8f',1,'block::Block']]],
+  ['colors_20',['colors',['../classspawner_1_1Spawner.html#a0c492be929ac110268db30ded64b9301',1,'spawner::Spawner']]],
+  ['compute_5fangle_21',['compute_angle',['../classvision_1_1ZedBlock.html#a9775e65c59f0dc1fb4d11d4e2e32a5ab',1,'vision::ZedBlock']]],
+  ['compute_5fmid_22',['compute_mid',['../classvision_1_1ZedBlock.html#ac716db85b4110e164043309ee998825e',1,'vision::ZedBlock']]],
+  ['compute_5fmid_5f3d_23',['compute_mid_3d',['../classvision_1_1ZedBlock.html#ab57f70a6304ed7db9488b9121b3fa16c',1,'vision::ZedBlock']]],
+  ['compute_5fmodel_24',['compute_model',['../namespaceworld.html#ad2a82f5c268a4d42bcfa3e17b3e28eba',1,'world']]],
+  ['compute_5fsides_25',['compute_sides',['../classvision_1_1ZedBlock.html#ab6dfb7c922973e8f015eb9f0baeab436',1,'vision::ZedBlock']]],
+  ['compute_5fvertex_26',['compute_vertex',['../classvision_1_1ZedBlock.html#a0909bccb62b41dfc3e6a1209fa26e416',1,'vision::ZedBlock']]],
+  ['compute_5fyaw_27',['compute_yaw',['../classvision_1_1ZedBlock.html#ad446452fb4f9c87a041e062b4c0f791a',1,'vision::ZedBlock']]],
+  ['computecirculartrajectory_28',['computeCircularTrajectory',['../utils_8cpp.html#a2792e3efd18ca9074ead001ed096ec2b',1,'utils.cpp']]],
+  ['computeqdot0_29',['computeQdot0',['../utils_8cpp.html#ac26d8ae6e2f4828b19fba517a47dae89',1,'utils.cpp']]],
+  ['confidence_30',['confidence',['../classvision_1_1VisionManagerClass.html#a2eac63ee036f68029b808fe379495df6',1,'vision::VisionManagerClass']]],
+  ['coord_31',['Coord',['../classblock_1_1Coord.html',1,'block']]],
+  ['creation_20of_20the_20object_2ddetection_20model_20for_20the_20robotics_20project_32',['Creation of the Object-Detection Model for the Robotics Project',['../md__home_giolor_trento_lab_home_ros_ws_src_robotics-project_dependencies_robotics_project_vision_README.html',1,'']]]
+];
