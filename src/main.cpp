@@ -1,7 +1,9 @@
 /* Header */
 #include "robotics_project/main.h"
 
+#include <chrono>
 #include <iostream>
+#include <thread>
 
 #include "ros/ros.h"
 
@@ -43,7 +45,9 @@ int main(int argc, char **argv) {
    // for-each block, move
 
    static bool hasVisionFinished = false;
-   for (int8_t moved = 0; !hasVisionFinished; moved++) {
+   static int8_t moved = 0;
+   // for (int8_t moved = 0; !hasVisionFinished; moved++) {
+   while (!hasVisionFinished) {
       // when the vision module is ready, uncomment this block
       vision_srv.request.n_moved_blocks = moved;
       if (vision_client.call(vision_srv)) {
@@ -86,8 +90,10 @@ int main(int argc, char **argv) {
                continue;
             }
          }
+         moved += n_blocks;
       } else {
-         std::cerr << "MAIN Process: Failed to call the VISION module | block " << moved << std::endl;
+         std::cerr << "MAIN Process: Failed to call the VISION module" << std::endl;
+         std::this_thread::sleep_for(std::chrono::seconds(5));
          continue;
       }
       //////////////////////////////////
