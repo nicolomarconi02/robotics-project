@@ -20,7 +20,7 @@ class Spawner():
     MARGIN=0.05
     LIMITS=GenerationLimits(
         Range(0, 1),
-        Range(0.15, 0.8),
+        Range(0.3, 0.8),
         Range(0, 360)
         )
     ARM_AREA=Cfr(0.5, 0.5, 0.2)
