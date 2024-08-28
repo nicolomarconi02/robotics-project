@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from ctypes import * # convert float to uint32
 
 from itertools import combinations
+from functools import reduce
 
 import math
 import time
@@ -130,30 +131,41 @@ class ZedBlock:
         point = self.cluster_points[:,0].argmin()
         self.vertex = np.array(self.cluster_points[point,:])
 
-    def compute_sides(self):
-        point_max_y = self.vertex
-        point_min_y = self.vertex
-        for p in self.cluster_points:
-            
-            if p[1] > self.vertex[1]:
-                # Points below the vertex
-                if p[0] >= point_max_y[0]:
-                    point_max_y = p
-            
-            elif p[1] < self.vertex[1]:
-                # Points above the vertex
-                if p[0] >= point_min_y[0]:
-                    point_min_y = p
+        # if the vertex has no points above it,
+        # then we have to change its position in order to be able to compute the sides
+        points_above_vertex = [p for p in self.cluster_points if p[1] < self.vertex[1]]
+        if len(points_above_vertex) == 0:
+            point = self.cluster_points[:,1].argmax()
+            self.vertex = np.array(self.cluster_points[point,:])
 
-            # NOTE: if p[1] == vertex[1] it means that we found a point that has the same y value of the vertex.
-            # This means that the block has a side perfectly parallel to the y axis
+
+    def compute_sides(self):
+        # we get the points above/down the vertex
+        cluster_points_down = [p for p in self.cluster_points if p[1] < self.vertex[1]]
+        cluster_points_top = [p for p in self.cluster_points if p[1] > self.vertex[1]]
+
+        # this lambda is used to reduce the top/down by going on the left
+        keepDirection = lambda p,q: p if p[0] >= q[0] else q
+
+        # we check if the vertex has been relocated
+        points_on_vertex_right = [p for p in self.cluster_points if p[0] < self.vertex[0]]
+        if len(points_on_vertex_right) > 0:
+            # if so we move along the x-axis to get the sides
+            cluster_points_down = [p for p in self.cluster_points if p[0] < self.vertex[0]]
+            cluster_points_top = [p for p in self.cluster_points if p[0] > self.vertex[0]]
+            # now the lambda goes on the top
+            keepDirection = lambda p,q: p if p[1] <= q[1] else q
+
+        # extremes of the sides
+        point_min = reduce(keepDirection, cluster_points_down, self.vertex)
+        point_max = reduce(keepDirection, cluster_points_top, self.vertex)
 
         # Get the length of the sides
-        p1 = point_min_y   
+        p1 = point_min   
         v1 = p1 - self.vertex
         n1 = round(np.linalg.norm(v1),3)
         
-        p2 = point_max_y
+        p2 = point_max
         v2 = p2 - self.vertex
         n2 = round(np.linalg.norm(v2),3)
 
