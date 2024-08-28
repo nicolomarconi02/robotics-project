@@ -62,13 +62,16 @@ run-client:
 	@${SOURCE} && rosrun ${PROJECT_NAME} main
 
 run-robot: copy-models
-	@${SOURCE} && make -j exec-robot robot-ready-manager
+	@${SOURCE} && make -j exec-robot robot-ready-manager gripper-params
 
 exec-robot:
 	@python3 src/world/exec-robot.py
 
 robot-ready-manager:
 	@python3 src/world/robot-ready-manager.py
+
+gripper-params:
+	@python3 src/world/gripper-params.py ${LOCOSIM_PATH}/robot_descriptions/gripper_description/gripper_description/urdf/soft_finger.xacro
 
 graph:
 	@rosrun rqt_graph rqt_graph
@@ -96,6 +99,7 @@ predictions:
 	world-setup
 	position-blocks
 	exec-robot
+	gripper-params
 	run-movement
 	run-client
 	run-robot
