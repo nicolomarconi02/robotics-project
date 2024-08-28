@@ -36,7 +36,6 @@ bool movHandler(robotics_project::MovementHandler::Request &req, robotics_projec
                                          req.pose.orientation.z);
    brickPosition = worldToBaseCoordinates(brickPosition);
    brickPosition -= Eigen::Vector3d{0.0, 0.0, TOOL_SIZE};
-
    std::string blockId = req.block_id;
    Path movements = getPath(brickPosition, rotationQuaternion, blockId);
 
@@ -47,8 +46,9 @@ bool movHandler(robotics_project::MovementHandler::Request &req, robotics_projec
 
 Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation,
              const std::string &blockId) {
+   ROS_INFO("%s", blockId.c_str());
    Eigen::Vector3d finalPosition = getFinalPosition(blockId);
-   if (finalPosition == Eigen::Vector3d::Zero()) {
+   if (finalPosition.norm() < 1e-3) {
       ROS_ERROR("UNKNOWN BLOCK ID");
       ROS_ERROR("STOPPING MOVEMENT");
       return Path();
@@ -77,8 +77,8 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    }
    ROS_INFO("FINISH move to brick standard height");
    // OPEN GRIPPER
-   insertPath(path,
-              moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), brickPositionStdHeight, Re));
+   insertPath(path, toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN, blockId));
+   // insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, Re));
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
 
    // Compute radiant angle
@@ -89,8 +89,7 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    Eigen::Quaterniond graspingOrientation(graspingRotationMatrix);
    insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, graspingOrientation));
    // CLOSE GRIPPER
-   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE), brickPosition,
-                              graspingOrientation));
+   insertPath(path, toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE, blockId));
 
    // MOVEMENT FROM BRICK POSITION TO BRICK STANDARD HEIGHT POSITION
    insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, graspingOrientation));
@@ -109,7 +108,7 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    std::cout << trajectoryBrickToFinal << std::endl;
    for (int i = 0; i < trajectoryBrickToFinal.rows(); i++) {
       auto jointConfiguration_i = path.row(path.rows() - 1);
-      insertPath(path, moveRobot(jointConfiguration_i, trajectoryBrickToFinal.row(i), Re, 1.0));
+      insertPath(path, moveRobot(jointConfiguration_i, trajectoryBrickToFinal.row(i), graspingOrientation, 1.0));
    }
    ROS_INFO("FINISH move to final standard height");
 
@@ -117,8 +116,8 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    insertPath(path, moveRobot(path.row(path.rows() - 1), finalPosition, finalRotationQuaternion));
 
    // OPEN GRIPPER
-   insertPath(path, moveRobot(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN), finalPositionStdHeight,
-                              finalRotationQuaternion));
+   insertPath(path, toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN, blockId));
+   insertPath(path, moveRobot(path.row(path.rows() - 1), finalPositionStdHeight, finalRotationQuaternion));
    ROS_INFO("FINISH moveRobot");
 
    // THIS IS ONLY FOR DEBUGGING
@@ -139,6 +138,7 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    for (auto val : peFinal) {
       std::cout << val << " ";
    }
+   std::cout << std::endl;
    //////////////////////////////////////
    ROS_INFO("END getPath");
    return path;
@@ -224,8 +224,9 @@ void runOptimization() {
                                             lambda0, wt, singularities, 1.0);
             }
             // OPEN GRIPPER
-            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN),
-                                         brickPositionStdHeight, initialOrientation, lambda0, wt, singularities);
+            path = toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN, blockId);
+            path = moveRobotOptimization(path.row(path.rows() - 1), brickPositionStdHeight, initialOrientation, lambda0,
+                                         wt, singularities);
             // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
             double graspingAngle = finalRotationQuaternion.z() + M_PI / 2;
             Eigen::Matrix3d graspingRotationMatrix = rotationMatrixAroundZ(graspingAngle);
@@ -233,8 +234,9 @@ void runOptimization() {
             path = moveRobotOptimization(path.row(path.rows() - 1), brickPosition, graspingOrientation, lambda0, wt,
                                          singularities);
             // CLOSE GRIPPER
-            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE), brickPosition,
-                                         graspingOrientation, lambda0, wt, singularities);
+            path = toggleGripper(path.row(path.rows() - 1), GripperState_::CLOSE, blockId);
+            path = moveRobotOptimization(path.row(path.rows() - 1), brickPosition, graspingOrientation, lambda0, wt,
+                                         singularities);
 
             // MOVEMENT FROM BRICK POSITION TO BRICK STANDARD HEIGHT POSITION
             path = moveRobotOptimization(path.row(path.rows() - 1), brickPositionStdHeight, graspingOrientation,
@@ -265,8 +267,9 @@ void runOptimization() {
             }
 
             // OPEN GRIPPER
-            path = moveRobotOptimization(toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN),
-                                         finalPositionStdHeight, finalRotationQuaternion, lambda0, wt, singularities);
+            path = toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN, blockId);
+            path = moveRobotOptimization(path.row(path.rows() - 1), finalPositionStdHeight, finalRotationQuaternion,
+                                         lambda0, wt, singularities);
          }
       }
       movements_data.push_back({currLambda0, currWt, minDelta.norm(), currSingularities});

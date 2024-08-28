@@ -174,13 +174,13 @@ BlockId getBlockId(const std::string& blockId) {
 Eigen::Vector3d getFinalPosition(const std::string& blockId) {
    BlockId block = getBlockId(blockId);
    if (block == BlockId_::LENGTH) {
-      return Eigen::Vector3d{0.0, 0.0, 0.0};
+      return Eigen::Vector3d::Zero();
    }
    Eigen::Vector2d planeSize{1.0, 0.15};
    Eigen::Vector2d dropRegionSize{planeSize(0) / (double)BlockId_::LENGTH, planeSize(1)};
    double xPos = dropRegionSize(0) * (double)block + dropRegionSize(0) / 2.0;
    double yPos = dropRegionSize(1) / 2.0;
-   double zPos = 1.155;
+   double zPos = 1.2;
    Eigen::Vector3d finalPosition{xPos, yPos, zPos};
    return worldToBaseCoordinates(finalPosition);
 }
@@ -320,26 +320,45 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    return trajectory;
 }
 
-Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
-                                          const GripperState& state) {
-   Eigen::Matrix<double, 8, 1> jointConfigurationCopy = jointConfiguration;
+Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const GripperState& state,
+                   const std::string& blockId) {
+   Eigen::Matrix<double, 8, 1> jointConfigurationTmp = jointConfiguration;
+   Path path;
+   double toggleGripper = 0.0;
+   double gripperRight = 0.0;
+   double gripperLeft = 0.0;
    switch (state) {
       case GripperState_::CLOSE:
          // ROS_INFO("CLOSING GRIPPER");
-         jointConfigurationCopy(6) = CLOSE_GRIPPER_ANGLE;
-         jointConfigurationCopy(7) = CLOSE_GRIPPER_ANGLE;
+         // jointConfigurationTmp(6) = CLOSE_GRIPPER_ANGLE_THIN;
+         // jointConfigurationTmp(7) = CLOSE_GRIPPER_ANGLE_THIN;
+         if (blockId == X2_Y2_Z2_ || blockId == X2_Y2_Z2_FILLET_) {
+            toggleGripper = CLOSE_GRIPPER_ANGLE_THICK;
+         } else {
+            toggleGripper = CLOSE_GRIPPER_ANGLE_THIN;
+         }
          break;
       case GripperState_::OPEN:
          // ROS_INFO("OPENING GRIPPER");
-         jointConfigurationCopy(6) = OPEN_GRIPPER_ANGLE;
-         jointConfigurationCopy(7) = OPEN_GRIPPER_ANGLE;
+         // jointConfigurationTmp(6) = OPEN_GRIPPER_ANGLE;
+         // jointConfigurationTmp(7) = OPEN_GRIPPER_ANGLE;
+         toggleGripper = OPEN_GRIPPER_ANGLE;
          break;
       default:
          ROS_WARN("UNKNOWN GRIPPER STATE");
          break;
    }
 
-   return jointConfigurationCopy;
+   static int steps = 20;
+   for (int i = 1; i <= steps; i++) {
+      gripperRight = jointConfigurationTmp(6) + (((toggleGripper - jointConfigurationTmp(6)) * i) / steps);
+      gripperLeft = jointConfigurationTmp(7) + (((toggleGripper - jointConfigurationTmp(7)) * i) / steps);
+      jointConfigurationTmp(6) = gripperRight;
+      jointConfigurationTmp(7) = gripperLeft;
+      insertPath(path, jointConfigurationTmp);
+   }
+
+   return path;
 }
 
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,

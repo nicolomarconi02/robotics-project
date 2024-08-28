@@ -20,11 +20,12 @@
 #define TOTAL_TIME 10.0
 #define TIME_STEP 0.1
 #define N_SEGMENTS 40
-#define STD_HEIGHT 0.5
+#define STD_HEIGHT 0.4
 #define RADIUS_CIRCLE 0.35
-#define TOOL_SIZE 0.125
-#define CLOSE_GRIPPER_ANGLE 0.0
-#define OPEN_GRIPPER_ANGLE 2.0
+#define TOOL_SIZE 0.13
+#define CLOSE_GRIPPER_ANGLE_THIN -0.3
+#define CLOSE_GRIPPER_ANGLE_THICK 0.1
+#define OPEN_GRIPPER_ANGLE M_PI_2
 
 /* Typedefs in order to be more clear */
 typedef Eigen::Matrix<double, Eigen::Dynamic, 8> Path;
@@ -86,8 +87,8 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle();
 Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
 
-Eigen::Matrix<double, 8, 1> toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration,
-                                          const GripperState& state);
+Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const GripperState& state,
+                   const std::string& blockId);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
                const Eigen::Matrix3d& finalRotationMatrix, const double maxTime = TOTAL_TIME);
 Path moveRobot(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const Eigen::Vector3d& finalPosition,
