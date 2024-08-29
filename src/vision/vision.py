@@ -551,6 +551,14 @@ class VisionManagerClass():
 
         image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
 
+        # we have to cut above the line passing through the points
+        # (1200,410) and (1540,900)
+        # to exclude the blocks already positioned
+        for (py, row) in enumerate(image_cv2):
+            for (px,pixel) in enumerate(row):
+                if ( (px - 1200) / 340 - (py - 410) / 490 ) > 0:
+                    image_cv2[py][px] = (255, 255, 255)
+
         hsv = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2HSV)
 
         mask = cv2.inRange(hsv, (0, 0, 100), (255, 5, 255))
