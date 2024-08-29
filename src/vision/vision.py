@@ -1,4 +1,18 @@
 #! /usr/bin/env python
+
+"""!
+Starts a ROS service that takes a sensor_msgs/Image and a _____ as input, elaborates the data in order to detect 
+and locate the blocks on the working table, and returns geometry_msgs/Pose[] as output.
+
+The blocks are detected via a YoloV8 model, from which a prediction (and its confidence) is obtained. The point 
+cloud is used to check and verify the prediction of the model, as well as to locate the block on the table with 
+(x, y, z) coordinates with respect to the world frame.
+
+The blocks that are returned in geometry_msgs/Pose[] as output are not always all the detected ones, but only the 
+ones with a high probability of being correctly identified. This is why the service may need to be run multiple 
+times until the boolean geometry_msgs/Pose[]/finished is returned as True.
+"""
+
 import rospy as ros
 
 import cv2
@@ -6,8 +20,7 @@ from cv_bridge import CvBridge
 
 import numpy as np
 import matplotlib.pyplot as plt
-from ctypes import * # convert float to uint32
-
+from ctypes import *    # To convert float to uint32
 from itertools import combinations
 from functools import reduce
 
@@ -31,37 +44,36 @@ import sys
 sys.path.append("src/world")
 from world import Models, TABLE_HEIGHT, UNIT_HEIGHT
 
-# una volta effettuate delle modifiche non è necessario buildare nuovamente
-# il progetto, almeno che non si debbano cambiare gli import
 
-## from zed frame to world frame
+## Rotation matrix from zed frame to world frame
 ROTATIONAL_MATRIX = np.array([[ 0.     , -0.49948,  0.86632],
                             [-1.     ,  0.     ,  0.     ],
                             [-0.     , -0.86632, -0.49948]])
-ROTATIONAL_MATRIX_INV = np.transpose(ROTATIONAL_MATRIX)
 
-## zed position from world frame
+## Zed position with respect to world frame
 ZED_WRT_WORLD = np.array([-0.4 ,  0.59,  1.4 ])
 
-## constants for object detection with YoloV8
+## Path where the YoloV8 model (.pt) can be found 
 MODEL = "dependencies/robotics_project_vision/best.pt"
 ERROR_ON_Y = 30             # error found empirically. The predictor translate of 25 pixel the y coordinates of the bbox
 
-## constants for managing point cloud
-BLOCK_LEVEL = 0.875         # z value for which we are sure to not intersect with the work-station/ground
-ERROR_Z = 3                 # meaning min_value -> 0.001
+## z-value for which we are sure to not intersect with the work-station/ground
+BLOCK_LEVEL = 0.875 
+## Taking only ERROR_Z decimals in the z-values to create the key of the point-cloud-dictionary       
+ERROR_Z = 3     
+## Create graphs to see the blocks detected via YoloV8 and Zed-Camera          
 PLOTH_GRAPHS = True
-
-DEBUG = False
 
 MAX_OVERLAP_RATE = 0.7
 
-
 # move to repo
 from sklearn.cluster import DBSCAN
-# pip install numpy matplotlib scipy scikit-learn
 class Manage_Point_Cloud():
     def __init__(self, rotational_matrix, zed_wrt_world):
+        """!
+        Class 
+        """
+
         self.point_cloud2_msg = None
 
         self.rotational_matrix = rotational_matrix
@@ -276,6 +288,10 @@ class ZedBlock:
 class VisionManagerClass():
 
     def __init__(self, robot_name="ur5"):
+        """!
+        
+        """
+
         ros.init_node('vision')
 
         self.predictor = vision.Object_Detection(model=MODEL)
@@ -297,12 +313,6 @@ class VisionManagerClass():
 
     def digest_ZED_data(self, image : Image, pc2 : PointCloud2):
         """
-        At the moment this function is unfinished, because we still can't send the data
-        to the clients.
-    
-        Reference to this temporary function's content:
-        https://github.com/mfocchi/robot_control/blob/0efd6d8298849e2b4d8ecb88f3e256940ede2be5/lab_exercises/lab_palopoli/ur5_generic.py#L258
-
         This function digests the data obtained from the camera.
         Arguments:
             image: the image itself
@@ -383,10 +393,6 @@ class VisionManagerClass():
 
         # Sort the blocks detected via pointCloud for "accuracy", aka "how far away from 90° the angle between v1 and v2 is"
         self.zed_blocks = sorted(self.zed_blocks, key=lambda block: block.accuracy)
-
-        if DEBUG:
-            for b in self.zed_blocks:
-                print(b)
         
         if PLOTH_GRAPHS:
             plt.xlabel('x')
@@ -733,9 +739,11 @@ class VisionManagerClass():
 
 
 def main():
+    """!
+    Starts a ROS Node and keeps it running.
+    """
     print('VISION PROCESS: STARTED')
 
-    # Starting the ROS Node and keep it running
     manager = VisionManagerClass()
     manager.start_service()
 
