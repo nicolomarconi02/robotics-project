@@ -42,7 +42,7 @@ from geometry_msgs.msg import Pose
 
 import sys
 sys.path.append("src/world")
-from world import Models, TABLE_HEIGHT, UNIT_HEIGHT
+from world import Models, TABLE_HEIGHT, UNIT_HEIGHT, UNIT_LENGTH
 
 
 ## Rotation matrix from zed frame to world frame
@@ -603,8 +603,8 @@ class VisionManagerClass():
 
                 if block.yolo_confidence > 0.65:
                     block.compute_mid_3d()
-                    v1_norm = round(block.n1 / 0.031,0)
-                    v2_norm = round(block.n2 / 0.031,0)
+                    v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                    v2_norm = round(block.n2 / UNIT_LENGTH,0)
 
                     expected_sizes = Models[block.yolo_prediction].factor
                     expected_max_size = max(expected_sizes.width, expected_sizes.length)
@@ -630,14 +630,14 @@ class VisionManagerClass():
                         # The ZedCamera sees only one side, therefore we have to see whether this side matches
                         # one of the sides predicted by the model
 
-                        v1_norm = round(block.n1 / 0.031,0)
+                        v1_norm = round(block.n1 / UNIT_LENGTH,0)
 
                         expected_sizes = Models[block.yolo_prediction].factor
                         expected_max_size = max(expected_sizes.width, expected_sizes.length)
                         expected_min_size = min(expected_sizes.width, expected_sizes.length)
 
                         if v1_norm  == expected_max_size:
-                            block.p2 = np.array([block.vertex[0] + expected_min_size*0.031/2, block.vertex[1]])
+                            block.p2 = np.array([block.vertex[0] + expected_min_size*UNIT_LENGTH/2, block.vertex[1]])
                             block.v2 = block.p2 - block.vertex
                             block.n2 = round(np.linalg.norm(block.v2),3)
                             block.compute_mid()
@@ -647,7 +647,7 @@ class VisionManagerClass():
                             taken = True
 
                         elif v1_norm == expected_min_size:
-                            block.p2 = np.array([block.vertex[0] + expected_max_size*0.031/2, block.vertex[1]])
+                            block.p2 = np.array([block.vertex[0] + expected_max_size*UNIT_LENGTH/2, block.vertex[1]])
                             block.v2 = block.p2 - block.vertex
                             block.n2 = round(np.linalg.norm(block.v2),3)
 
@@ -664,8 +664,8 @@ class VisionManagerClass():
                         # If the block is not a one-detected-side one, then we could check if the model
                         # predicted the right sides' length
 
-                        v1_norm = round(block.n1 / 0.031,0)
-                        v2_norm = round(block.n2 / 0.031,0)
+                        v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                        v2_norm = round(block.n2 / UNIT_LENGTH,0)
 
                         expected_sizes = Models[block.yolo_prediction].factor
                         expected_max_size = max(expected_sizes.width, expected_sizes.length)
@@ -688,12 +688,14 @@ class VisionManagerClass():
                 self.blocks_to_take.append(block)
             else:
                 # We still have one or more block on the working-table, but these are not detecteed by the model
-                block = self.zed_blocks[first_with_box]
-                v1_norm = round(block.n1 / 0.031,0)
-                v2_norm = round(block.n2 / 0.031,0)
-                block.yolo_prediction = f"X{v2_norm}-Y{v1_norm}-Z2"
-                block.compute_mid_3d()
-                self.blocks_to_take.append(block)
+                block = self.zed_blocks[0]
+                if block.v2 is not None:
+                    v1_norm = max(int(round(block.n1 / UNIT_LENGTH,0)), 1)
+                    v2_norm = max(int(round(block.n2 / UNIT_LENGTH,0)), 1)
+                    block.yolo_prediction = f"X{v2_norm}-Y{v1_norm}-Z2"
+                    block.yolo_bbox_id = -1
+                    block.compute_mid_3d()
+                    self.blocks_to_take.append(block)
 
         return
 
