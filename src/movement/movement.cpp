@@ -68,7 +68,8 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    ROS_INFO("FINISH move to initial standard height");
 
    // MOVEMENT FROM INITIAL STANDARD HEIGHT POSITION TO BRICK STANDARD HEIGHT POSITION
-   Trajectory trajectoryInitialToBrick = computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight);
+   Trajectory trajectoryInitialToBrick =
+       computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight, path.row(path.rows() - 1));
    std::cout << "trajectoryInitialToBrick: " << std::endl;
    std::cout << trajectoryInitialToBrick << std::endl;
    for (int i = 0; i < trajectoryInitialToBrick.rows(); i++) {
@@ -103,7 +104,8 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    std::cout << "finalPositionStdHeight: " << finalPositionStdHeight.transpose() << std::endl;
 
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO FINAL STANDARD HEIGHT POSITION
-   Trajectory trajectoryBrickToFinal = computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight);
+   Trajectory trajectoryBrickToFinal =
+       computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight, path.row(path.rows() - 1));
    std::cout << "trajectoryBrickToFinal: " << std::endl;
    std::cout << trajectoryBrickToFinal << std::endl;
    for (int i = 0; i < trajectoryBrickToFinal.rows(); i++) {
@@ -217,7 +219,7 @@ void runOptimization() {
                                                  initialOrientation, lambda0, wt, singularities);
             // MOVEMENT FROM INITIAL STANDARD HEIGHT POSITION TO BRICK STANDARD HEIGHT POSITION
             Trajectory trajectoryInitialToBrick =
-                computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight);
+                computeCircularTrajectory(initialPositionStdHeight, brickPositionStdHeight, path.row(path.rows() - 1));
             for (int i = 0; i < trajectoryInitialToBrick.rows(); i++) {
                auto jointConfiguration_i = path.row(path.rows() - 1);
                path = moveRobotOptimization(jointConfiguration_i, trajectoryInitialToBrick.row(i), initialOrientation,
@@ -244,7 +246,7 @@ void runOptimization() {
 
             // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO FINAL STANDARD HEIGHT POSITION
             Trajectory trajectoryBrickToFinal =
-                computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight);
+                computeCircularTrajectory(brickPositionStdHeight, finalPositionStdHeight, path.row(path.rows() - 1));
             for (int i = 0; i < trajectoryBrickToFinal.rows(); i++) {
                auto jointConfiguration_i = path.row(path.rows() - 1);
                path = moveRobotOptimization(jointConfiguration_i, trajectoryBrickToFinal.row(i), initialOrientation,

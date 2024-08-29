@@ -83,9 +83,11 @@ void insertPath(Path& path, const Eigen::Matrix<double, 8, 1>& jointConfiguratio
 void insertPath(Path& path, const Path& pathToInsert);
 
 double distanceBetweenPoints(const Eigen::Vector3d& point1, const Eigen::Vector3d& point2);
-MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
+MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition,
+                                       const Eigen::Matrix<double, 8, 1>& jointConfiguration);
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle();
-Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition);
+Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition,
+                                     const Eigen::Matrix<double, 8, 1>& jointConfiguration);
 
 Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const GripperState& state,
                    const std::string& blockId);
