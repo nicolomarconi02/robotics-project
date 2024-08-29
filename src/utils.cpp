@@ -204,14 +204,20 @@ double distanceBetweenPoints(const Eigen::Vector3d& point1, const Eigen::Vector3
    return (point1 - point2).norm();
 }
 
-MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
+MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition,
+                                       const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
    double thetaInitial = std::atan2(initialPosition(1), initialPosition(0));
    double thetaFinal = std::atan2(finalPosition(1), finalPosition(0));
 
    double delta = thetaFinal - thetaInitial;
 
    delta = std::atan2(std::sin(delta), std::cos(delta));
-
+   double finalAngle = jointConfiguration(0) + delta;
+   if (finalAngle > M_PI) {
+      return MovementDirection_::CLOCKWISE;
+   } else if (finalAngle < -M_PI) {
+      return MovementDirection_::COUNTERCLOCKWISE;
+   }
    if (delta >= 0) {
       if (delta <= M_PI) {
          return MovementDirection_::CLOCKWISE;
@@ -239,7 +245,8 @@ constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle() {
    return points;
 }
 
-Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition) {
+Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition,
+                                     const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
    Eigen::Vector3d p1(
        (initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
        (initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
@@ -260,7 +267,7 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    Eigen::Vector3d finalPosOnCircle =
        (distanceBetweenPoints(finalPosition, p3) < distanceBetweenPoints(finalPosition, p4)) ? p3 : p4;
 
-   MovementDirection direction = getMovementDirection(initialPosOnCircle, finalPosOnCircle);
+   MovementDirection direction = getMovementDirection(initialPosOnCircle, finalPosOnCircle, jointConfiguration);
    if (direction == MovementDirection_::NONE) {
       return Trajectory();
    }
@@ -289,20 +296,22 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    int increment = 0;
    if (direction == MovementDirection_::CLOCKWISE) {
       increment = 1;
-      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial)) ==
+      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial), jointConfiguration) ==
           MovementDirection_::COUNTERCLOCKWISE) {
          indexInitial = (indexInitial + increment) % N_SEGMENTS;
       }
-      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal)) ==
+      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal), jointConfiguration) ==
           MovementDirection_::COUNTERCLOCKWISE) {
          indexFinal = (indexFinal + increment) % N_SEGMENTS;
       }
    } else if (direction == MovementDirection_::COUNTERCLOCKWISE) {
       increment = -1;
-      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial)) == MovementDirection_::CLOCKWISE) {
+      if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial), jointConfiguration) ==
+          MovementDirection_::CLOCKWISE) {
          indexInitial = (indexInitial + increment) % N_SEGMENTS;
       }
-      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal)) == MovementDirection_::CLOCKWISE) {
+      if (getMovementDirection(finalPosOnCircle, pointsOnCircle.row(indexFinal), jointConfiguration) ==
+          MovementDirection_::CLOCKWISE) {
          indexFinal = (indexFinal + increment) % N_SEGMENTS;
       }
    }
