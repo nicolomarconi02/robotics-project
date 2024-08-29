@@ -127,38 +127,80 @@ class ZedBlock:
             else:
                 self.mid = (self.p1 + self.vertex)/2
 
+    def get_quadrants(self):
+        """
+        This method returns the cluster points on the 4 quadrants centered on the vertex
+        """
+        origin = self.vertex[:]
+        points = self.cluster_points[:]
+
+        # The origin gets removed from the pool, so that it doesn't get count on the quadrants
+        points = np.delete(points, np.where(points == origin)[0][0], axis=0)
+    
+        return [
+            [p for p in points if p[0] <= origin[0] and p[1] <= origin[1]], 
+            [p for p in points if p[0] >= origin[0] and p[1] <= origin[1]], 
+            [p for p in points if p[0] >= origin[0] and p[1] >= origin[1]], 
+            [p for p in points if p[0] <= origin[0] and p[1] >= origin[1]]
+            ]
+
     def compute_vertex(self):
         point = self.cluster_points[:,0].argmin()
         self.vertex = np.array(self.cluster_points[point,:])
 
-        # if the vertex has no points above it,
-        # then we have to change its position in order to be able to compute the sides
-        points_above_vertex = [p for p in self.cluster_points if p[1] < self.vertex[1]]
-        if len(points_above_vertex) == 0:
-            point = self.cluster_points[:,1].argmax()
+        # we get how many points are positioned in each quadrant around the vertex
+        q1, q2, q3, q4 = [len(q) for q in self.get_quadrants()]
+
+        # if only a quadrant has points, the block is near the camera and the block's angle requires a different vertex computation (y min/max)
+        if (q1 == 0) + (q2 == 0) + (q3 == 0) + (q4 == 0) == 3:
+            if q1 > 0 or q2 > 0:
+                point = self.cluster_points[:,1].argmin()
+            else:
+                point = self.cluster_points[:,1].argmax()
             self.vertex = np.array(self.cluster_points[point,:])
 
 
     def compute_sides(self):
-        # we get the points above/down the vertex
-        cluster_points_down = [p for p in self.cluster_points if p[1] < self.vertex[1]]
-        cluster_points_top = [p for p in self.cluster_points if p[1] > self.vertex[1]]
+        q1_points, q2_points, q3_points, q4_points = [np.array(q) for q in self.get_quadrants()]
+        q1, q2, q3, q4 = [len(q) for q in [q1_points, q2_points, q3_points, q4_points]]
 
-        # this lambda is used to reduce the top/down by going on the left
-        keepDirection = lambda p,q: p if p[0] >= q[0] else q
+        # set default
+        point_min = self.vertex
+        point_max = self.vertex
 
-        # we check if the vertex has been relocated
-        points_on_vertex_right = [p for p in self.cluster_points if p[0] < self.vertex[0]]
-        if len(points_on_vertex_right) > 0:
-            # if so we move along the x-axis to get the sides
-            cluster_points_down = [p for p in self.cluster_points if p[0] < self.vertex[0]]
-            cluster_points_top = [p for p in self.cluster_points if p[0] > self.vertex[0]]
-            # now the lambda goes on the top
-            keepDirection = lambda p,q: p if p[1] <= q[1] else q
-
-        # extremes of the sides
-        point_min = reduce(keepDirection, cluster_points_down, self.vertex)
-        point_max = reduce(keepDirection, cluster_points_top, self.vertex)
+        # the sides get set based on the vertex position
+        # right vertex
+        if q1 + q4 == 0 and q2 > 0 and q3 > 0:
+            i = q2_points[:,0].argmax()
+            j = q3_points[:,0].argmax()
+            point_min = np.array(q2_points[i,:])
+            point_max = np.array(q3_points[j,:])
+        # bottom vertex
+        if q3 + q4 == 0 and q1 > 0 and q2 > 0:
+            i = q1_points[:,1].argmin()
+            j = q2_points[:,1].argmin()
+            point_min = np.array(q1_points[i,:])
+            point_max = np.array(q2_points[j,:])
+        # top vertex
+        elif q1 + q2 == 0 and q3 > 0 and q4 > 0:
+            i = q4_points[:,1].argmax()
+            j = q3_points[:,1].argmax()
+            point_min = np.array(q4_points[i,:])
+            point_max = np.array(q3_points[j,:])
+        # there's only a quadrant available around the vertex (single vector)
+        elif (q1 == 0) + (q2 == 0) + (q3 == 0) + (q4 == 0) == 3:
+            if q1 > 0:
+                i = q1_points[:,0].argmin()
+                point_min = np.array(q1_points[i,:])
+            elif q2 > 0:
+                i = q2_points[:,0].argmax()
+                point_min = np.array(q2_points[i,:])
+            elif q3 > 0:
+                i = q3_points[:,0].argmax()
+                point_min = np.array(q3_points[i,:])
+            elif q4 > 0:
+                i = q4_points[:,0].argmin()
+                point_min = np.array(q4_points[i,:])
 
         # Get the length of the sides
         p1 = point_min   
