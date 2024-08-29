@@ -61,11 +61,18 @@ int main(int argc, char **argv) {
                 vision_srv.response.poses[i].orientation.y, vision_srv.response.poses[i].orientation.z);
             block_id = vision_srv.response.blocks_id[i];
             float yaw = std::acos(vision_srv.response.poses[i].orientation.z) * 2;
+
+            if (yaw > M_PI) {
+               yaw -= 2 * M_PI;
+            } else if (yaw < -M_PI) {
+               yaw += 2 * M_PI;
+            }
+
             float angle = yaw * 180 / M_PI;
 
             std::cout << "MAIN Process: Transmitting block " << i << " of type " << block_id << " and centered in ("
                       << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ") with an angle of "
-                      << angle << "°" << std::endl;
+                      << angle << "° = " << yaw << " rads" << std::endl;
 
             // Block transmission to movement module
             srv.request.pose.position.x = world_point[0];

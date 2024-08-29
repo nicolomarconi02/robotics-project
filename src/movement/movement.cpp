@@ -86,6 +86,13 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    double angle = std::acos(brickOrientation.z()) * 2;
 
    double graspingAngle = angle + M_PI / 2;
+
+   if (graspingAngle > M_PI) {
+      graspingAngle -= 2 * M_PI;
+   } else if (graspingAngle < -M_PI) {
+      graspingAngle += 2 * M_PI;
+   }
+
    Eigen::Matrix3d graspingRotationMatrix = rotationMatrixAroundZ(graspingAngle);
    Eigen::Quaterniond graspingOrientation(graspingRotationMatrix);
    insertPath(path, moveRobot(path.row(path.rows() - 1), brickPosition, graspingOrientation));

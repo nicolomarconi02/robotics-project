@@ -214,9 +214,9 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
    delta = std::atan2(std::sin(delta), std::cos(delta));
    double finalAngle = jointConfiguration(0) + delta;
    if (finalAngle > M_PI) {
-      return MovementDirection_::CLOCKWISE;
-   } else if (finalAngle < -M_PI) {
       return MovementDirection_::COUNTERCLOCKWISE;
+   } else if (finalAngle < -M_PI) {
+      return MovementDirection_::CLOCKWISE;
    }
    if (delta >= 0) {
       if (delta <= M_PI) {
