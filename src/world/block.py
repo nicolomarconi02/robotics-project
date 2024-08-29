@@ -36,6 +36,9 @@ class Block:
             y = self.y + self.size.length / 2 * math.cos(self.angle) + self.size.width / 2 * math.sin(self.angle), 
             z = TABLE_HEIGHT + Models[model].factor.height * 0.019 / 2
         )
+        
+        if self.model in ['X2-Y2-Z2', 'X2-Y2-Z2-FILLET']:
+            self.center.z += 0.01
 
         # Vertexes
         self.vertexes = self.get_vertexes()

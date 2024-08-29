@@ -269,7 +269,9 @@ class ZedBlock:
         self.mid = (self.p1 + self.p2) / 2
 
     def compute_mid_3d(self):
-        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (UNIT_HEIGHT*Models[self.yolo_prediction].factor.height)/2)]                        
+        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (UNIT_HEIGHT*Models[self.yolo_prediction].factor.height)/2)]
+        if self.yolo_prediction in ['X2-Y2-Z2', 'X2-Y2-Z2-FILLET']:
+            self.mid[2] += 0.01
 
     def compute_yaw(self):
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
@@ -292,8 +294,6 @@ class VisionManagerClass():
         
         """
 
-        ros.init_node('vision')
-
         self.predictor = vision.Object_Detection(model=MODEL)
         self.manage_cloud = Manage_Point_Cloud(rotational_matrix=ROTATIONAL_MATRIX, zed_wrt_world=ZED_WRT_WORLD)
         
@@ -306,6 +306,8 @@ class VisionManagerClass():
         self.zed_blocks = []
         self.yolo_blocks = []
         self.blocks_to_take = []
+        self.has_finished_blocks = False
+        plt.clf()
 
         # Make use of the image obtained
         self.digest_ZED_data(self.image_msg, self.point_cloud2_msg)
@@ -357,7 +359,7 @@ class VisionManagerClass():
         # to "cut" the point cloud at a given high and analyze only such points
         dic_3d_world = {}
         for point in points_3d_world:
-            if round(point[1],2) > 0.15:     # avoid the higher part of the working_table
+            if round(point[1],2) > 0.25:     # avoid the higher part of the working_table
                 z = round(point[2],ERROR_Z)  # rounding the z-value we get a significant one
                 if z in dic_3d_world:
                     tmp = dic_3d_world[z]
@@ -369,6 +371,7 @@ class VisionManagerClass():
         try:
             data = np.array(dic_3d_world[BLOCK_LEVEL])
         except KeyError:
+            self.has_finished_blocks = True
             print("No more blocks on the working table")
             return
         
@@ -662,7 +665,6 @@ class VisionManagerClass():
                         
                         if v1_norm == expected_max_size and v2_norm == expected_min_size:
                             block.compute_mid_3d()
-                            self.blocks_to_take.append(block)
                             taken = True
 
                     # If the object is taken, just pass this one
@@ -687,14 +689,6 @@ class VisionManagerClass():
 
         return
 
-    def start_service(self):
-        # Service's definition and its handler's setting
-        s = ros.Service('vision', GetBlocks, self.handle_get_blocks)
-        print('VISION Process: Service STARTED')
-
-        # The node runs indefinitely
-        ros.spin()
-
     def handle_get_blocks(self, req):
         """
         This function gets called in order to reply to the service's calls coming from the clients.
@@ -710,7 +704,7 @@ class VisionManagerClass():
         blocks_id = []
         n_blocks = len(self.blocks_to_take)
         n_moved = np.int8(req.n_moved_blocks)
-        finished = len(Models) - (n_moved + n_blocks) == 0
+        finished = self.has_finished_blocks
 
         print(f'The blocks to be SENT are {n_blocks}, the following lines describe them')
 
@@ -737,6 +731,22 @@ class VisionManagerClass():
 
         return GetBlocksResponse(poses, blocks_id, np.int8(n_blocks), finished)
 
+class RosManager():
+
+    def __init__(self):
+        # Service's definition and its handler's setting
+        ros.init_node('vision')
+
+    def start_service(self):
+        s = ros.Service('vision', GetBlocks, self.callback)
+        print('VISION Process: Service STARTED')
+
+        # The node runs indefinitely
+        ros.spin()
+
+    def callback(self, req):
+        manager = VisionManagerClass()
+        return manager.handle_get_blocks(req)
 
 def main():
     """!
@@ -744,7 +754,7 @@ def main():
     """
     print('VISION PROCESS: STARTED')
 
-    manager = VisionManagerClass()
+    manager = RosManager()
     manager.start_service()
 
 

@@ -18,12 +18,13 @@ class Spawner():
     colors=['Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Turquoise']
     MAX_SPAWNS = 100000
     MARGIN=0.05
+    TABLE_PADDING=0.02
     LIMITS=GenerationLimits(
         Range(0, 1),
-        Range(0.3, 0.8),
+        Range(0.25, 0.8),
         Range(0, 360)
         )
-    ARM_AREA=Cfr(0.5, 0.5, 0.2)
+    ARM_AREA=Cfr(0.5, 0.5, 0.25)
 
     def __init__(self, robot_name="ur5", models_path="models", plot=False, test=False):
         self.robot_name = robot_name
@@ -59,6 +60,7 @@ class Spawner():
         models = os.listdir(self.models_path)
         final_blocks = []
         margins = []
+        table_margins = []
 
         for idx, model in enumerate(models):
             collision = True
@@ -78,29 +80,38 @@ class Spawner():
                         angle=math.radians(random.uniform(Spawner.LIMITS.angle.min, Spawner.LIMITS.angle.max)),
                         color=selected_color
                     )
+
+                    blockMargin = Block(
+                        model=model,
+                        x=block.x,
+                        y=block.y,
+                        z=0.9,
+                        angle=block.angle,
+                        color=block.color,
+                        margin=Spawner.MARGIN
+                    )
                     count = count + 1
 
                     # check if center inside circle
                     outsideArea = math.pow(Spawner.ARM_AREA.x - block.center.x, 2) + math.pow(Spawner.ARM_AREA.y - block.center.y, 2) >= math.pow(Spawner.ARM_AREA.r, 2)
-
+                    
+                    tableMargin = Block(
+                        model=model,
+                        x=block.x,
+                        y=block.y,
+                        z=0.9,
+                        angle=block.angle,
+                        color=block.color,
+                        margin=Spawner.TABLE_PADDING
+                    )
                     # check if vertexes are inside the table
                     if outsideArea:
-                        for vertex in block.vertexes:
+                        for vertex in tableMargin.vertexes:
                             if vertex.x < Spawner.LIMITS.x.min or vertex.x > Spawner.LIMITS.x.max or \
                                 vertex.y < Spawner.LIMITS.y.min or vertex.y > Spawner.LIMITS.y.max:
                                 outsideArea = False
                                 break
 
-                # same block with 0.02 margin, in order to distanciate blocks
-                blockMargin = Block(
-                    model=model,
-                    x=block.x,
-                    y=block.y,
-                    z=0.9,
-                    angle=block.angle,
-                    color=block.color,
-                    margin=Spawner.MARGIN
-                )
                 i=0
                 for fblock in final_blocks:
                     if fblock.collides(blockMargin):
@@ -111,6 +122,7 @@ class Spawner():
                     collision = False
                     final_blocks.append(block)
                     margins.append(blockMargin)
+                    table_margins.append(tableMargin)
                     self.spawn_block(block)
 
 
@@ -153,6 +165,11 @@ class Spawner():
                 ax.add_patch(Rectangle((b.x, b.y), b.size.width, b.size.length, 
                                 angle=math.degrees(b.angle),
                                 edgecolor='blue',
+                                facecolor='none'))
+            for c in table_margins:
+                ax.add_patch(Rectangle((c.x, c.y), c.size.width, c.size.length, 
+                                angle=math.degrees(c.angle),
+                                edgecolor='orange',
                                 facecolor='none'))
 
             #display plot

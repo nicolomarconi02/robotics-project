@@ -84,13 +84,13 @@ int main(int argc, char **argv) {
                   continue;
                }
                std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
+               moved++;
                move(pub, movements);
             } else {
                std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
                continue;
             }
          }
-         moved += n_blocks;
       } else {
          std::cerr << "MAIN Process: Failed to call the VISION module" << std::endl;
          std::this_thread::sleep_for(std::chrono::seconds(5));
