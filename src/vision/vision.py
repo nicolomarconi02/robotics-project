@@ -551,6 +551,14 @@ class VisionManagerClass():
 
         image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
 
+        # we have to cut above the line passing through the points
+        # (1200,410) and (1540,900)
+        # to exclude the blocks already positioned
+        for (py, row) in enumerate(image_cv2):
+            for (px,pixel) in enumerate(row):
+                if ( (px - 1200) / 340 - (py - 410) / 490 ) > 0:
+                    image_cv2[py][px] = (255, 255, 255)
+
         hsv = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2HSV)
 
         mask = cv2.inRange(hsv, (0, 0, 100), (255, 5, 255))
@@ -678,14 +686,14 @@ class VisionManagerClass():
                 block = self.zed_blocks[first_with_box]
                 block.compute_mid_3d()
                 self.blocks_to_take.append(block)
-                print("Nothing better was found")
             else:
                 # We still have one or more block on the working-table, but these are not detecteed by the model
-                #TODO: is it really necessary to implement this case?
-                pass
-
-        #TODO: manca da gestire i blocchi posti in alto a destra (nel plot dei blocchi), ovvero quei blocchi che, se
-        #presentano una certa angolazione, il vertex non viene posizionato nel posto giusto
+                block = self.zed_blocks[first_with_box]
+                v1_norm = round(block.n1 / 0.031,0)
+                v2_norm = round(block.n2 / 0.031,0)
+                block.yolo_prediction = f"X{v2_norm}-Y{v1_norm}-Z2"
+                block.compute_mid_3d()
+                self.blocks_to_take.append(block)
 
         return
 
