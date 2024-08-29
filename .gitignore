@@ -7,4 +7,6 @@ predictions
 
 __pycache__/
 
+docs/html
+
 *.pickle

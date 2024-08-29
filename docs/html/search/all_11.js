@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['table_5fheight_127',['TABLE_HEIGHT',['../namespaceworld.html#aa264b3e908e71ee1da0a53102c8e8c8a',1,'world']]],
-  ['test_128',['test',['../classspawner_1_1Spawner.html#a05a671c66aefea124cc08b76ea6d30bb',1,'spawner::Spawner']]],
-  ['togglegripper_129',['toggleGripper',['../utils_8cpp.html#aed0c1473eefa35ae886e880dfde5cd2b',1,'utils.cpp']]]
+  ['handle_5fget_5fblocks_799',['handle_get_blocks',['../classvision-test-robot_1_1VisionManagerClass.html#a92093de3e0222b89d0964e2a013478f5',1,'vision-test-robot.VisionManagerClass.handle_get_blocks()'],['../classvision_1_1VisionManagerClass.html#a92093de3e0222b89d0964e2a013478f5',1,'vision.VisionManagerClass.handle_get_blocks()']]],
+  ['height_800',['HEIGHT',['../namespacecreate__annotations.html#a4e81322eb1085aca9cd7c5527f5e4c6b',1,'create_annotations']]]
 ];

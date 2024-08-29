@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['handle_5fget_5fblocks_235',['handle_get_blocks',['../classvision-test-robot_1_1VisionManagerClass.html#a92093de3e0222b89d0964e2a013478f5',1,'vision-test-robot.VisionManagerClass.handle_get_blocks()'],['../classvision_1_1VisionManagerClass.html#a92093de3e0222b89d0964e2a013478f5',1,'vision.VisionManagerClass.handle_get_blocks()']]]
+  ['filter_5fpredictions_1708',['filter_predictions',['../classvision_1_1VisionManagerClass.html#a03f27e3e5349c301d0c4717836a6a8ae',1,'vision::VisionManagerClass']]]
 ];

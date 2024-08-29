@@ -1,9 +1,7 @@
 var searchData=
 [
-  ['y_148',['y',['../classblock_1_1Block.html#a2fb1c5cf58867b5bbc9a1b145a86f3a0',1,'block::Block']]],
-  ['yaw_149',['yaw',['../classvision_1_1ZedBlock.html#aaeddb3af347c13f3d0915fb2e613acce',1,'vision::ZedBlock']]],
-  ['yolo_5fbbox_5fid_150',['yolo_bbox_id',['../classvision_1_1ZedBlock.html#a36a629c9e07a7743cbde5001d4d85320',1,'vision::ZedBlock']]],
-  ['yolo_5fblocks_151',['yolo_blocks',['../classvision_1_1VisionManagerClass.html#a2c92455e405db7750f26c9dc1dffa991',1,'vision::VisionManagerClass']]],
-  ['yolo_5fconfidence_152',['yolo_confidence',['../classvision_1_1ZedBlock.html#a4919053d9ae7354021e289452b7f6522',1,'vision::ZedBlock']]],
-  ['yolo_5fprediction_153',['yolo_prediction',['../classvision_1_1ZedBlock.html#aab7c4df627929c0c5c236e39784b8130',1,'vision::ZedBlock']]]
+  ['obj_5fclass_841',['obj_class',['../classvision_1_1VisionManagerClass.html#acab20622da2ec19358dfd0024c9cef6e',1,'vision::VisionManagerClass']]],
+  ['object_5fdetection_842',['Object_Detection',['../classobject__detection_1_1Object__Detection.html',1,'Object_Detection'],['../namespaceobject__detection.html',1,'object_detection'],['../classvision_1_1VisionManagerClass.html#a5d0548bbcc1fb91562577f47d3e4f382',1,'vision.VisionManagerClass.object_detection()']]],
+  ['object_5fdetection_2epy_843',['object_detection.py',['../object__detection_8py.html',1,'']]],
+  ['optimizeparamdiffkinquat_844',['optimizeParamDiffKinQuat',['../utils_8cpp.html#a1aa504c2ec7cff6a2ae5061e7c79a44f',1,'utils.cpp']]]
 ];

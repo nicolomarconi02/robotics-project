@@ -91,6 +91,9 @@ camera-rolls:
 predictions:
 	@mkdir predictions
 
+documentation:
+	@cd ${PROJECT_PATH}/docs && doxygen
+
 .PHONY:
 	build-pkg
 	build-proj
@@ -103,3 +106,4 @@ predictions:
 	run-movement
 	run-client
 	run-robot
+	documentation

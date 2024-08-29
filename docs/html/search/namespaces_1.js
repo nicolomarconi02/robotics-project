@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['deleter_173',['deleter',['../namespacedeleter.html',1,'']]]
+  ['create_5fannotations_945',['create_annotations',['../namespacecreate__annotations.html',1,'']]]
 ];

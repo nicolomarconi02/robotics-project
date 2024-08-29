@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.17"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Robotics Project: /home/giolor/trento_lab_home/ros_ws/src/robotics-project/src/utils.cpp File Reference</title>
+<title>Robotics Project: /home/nizar/ros_ws/src/robotics-project/src/utils.cpp File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -80,7 +80,16 @@ $(function() {
 </div><div class="textblock"><div class="dynheader">
 Include dependency graph for utils.cpp:</div>
 <div class="dyncontent">
-<div class="center"><img src="utils_8cpp__incl.png" border="0" usemap="#_2home_2giolor_2trento__lab__home_2ros__ws_2src_2robotics-project_2src_2utils_8cpp" alt=""/></div>
+<div class="center"><img src="utils_8cpp__incl.png" border="0" usemap="#_2home_2nizar_2ros__ws_2src_2robotics-project_2src_2utils_8cpp" alt=""/></div>
+<map name="_2home_2nizar_2ros__ws_2src_2robotics-project_2src_2utils_8cpp" id="_2home_2nizar_2ros__ws_2src_2robotics-project_2src_2utils_8cpp">
+<area shape="rect" title=" " alt="" coords="280,5,417,61"/>
+<area shape="rect" title=" " alt="" coords="5,109,159,136"/>
+<area shape="rect" title=" " alt="" coords="183,109,253,136"/>
+<area shape="rect" title=" " alt="" coords="277,109,332,136"/>
+<area shape="rect" title=" " alt="" coords="356,109,429,136"/>
+<area shape="rect" title=" " alt="" coords="453,109,628,136"/>
+<area shape="rect" title=" " alt="" coords="653,109,847,136"/>
+</map>
 </div>
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
@@ -137,8 +146,8 @@ Functions</h2></td></tr>
 <tr class="separator:a65709f2359cbd02379d771016c65132e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac280a6d90f85f2dd6265e8998e77fbae"><td class="memItemLeft" align="right" valign="top">Eigen::Quaterniond&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8cpp.html#ac280a6d90f85f2dd6265e8998e77fbae">slerp</a> (const Eigen::Quaterniond &amp;start, const Eigen::Quaterniond &amp;end, double t)</td></tr>
 <tr class="separator:ac280a6d90f85f2dd6265e8998e77fbae"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aed0c1473eefa35ae886e880dfde5cd2b"><td class="memItemLeft" align="right" valign="top">Eigen::Matrix&lt; double, 8, 1 &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8cpp.html#aed0c1473eefa35ae886e880dfde5cd2b">toggleGripper</a> (const Eigen::Matrix&lt; double, 8, 1 &gt; &amp;jointConfiguration, const GripperState &amp;state)</td></tr>
-<tr class="separator:aed0c1473eefa35ae886e880dfde5cd2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae1a0090b5d493f97e47827763a2a5c32"><td class="memItemLeft" align="right" valign="top">Path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8cpp.html#ae1a0090b5d493f97e47827763a2a5c32">toggleGripper</a> (const Eigen::Matrix&lt; double, 8, 1 &gt; &amp;jointConfiguration, const GripperState &amp;state, const std::string &amp;blockId)</td></tr>
+<tr class="separator:ae1a0090b5d493f97e47827763a2a5c32"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5fd97a9dea5990fa6696b1f4fb60e740"><td class="memItemLeft" align="right" valign="top">Eigen::Vector3d&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8cpp.html#a5fd97a9dea5990fa6696b1f4fb60e740">worldToBaseCoordinates</a> (const Eigen::Vector3d &amp;point)</td></tr>
 <tr class="separator:a5fd97a9dea5990fa6696b1f4fb60e740"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a721b9d925dcdf91ca5548073af2fb53f"><td class="memItemLeft" align="right" valign="top">constexpr const Eigen::Matrix4d&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8cpp.html#a721b9d925dcdf91ca5548073af2fb53f">worldToBaseTransformationMatrix</a> ()</td></tr>
@@ -929,14 +938,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="aed0c1473eefa35ae886e880dfde5cd2b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aed0c1473eefa35ae886e880dfde5cd2b">&#9670;&nbsp;</a></span>toggleGripper()</h2>
+<a id="ae1a0090b5d493f97e47827763a2a5c32"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae1a0090b5d493f97e47827763a2a5c32">&#9670;&nbsp;</a></span>toggleGripper()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">Eigen::Matrix&lt;double, 8, 1&gt; toggleGripper </td>
+          <td class="memname">Path toggleGripper </td>
           <td>(</td>
           <td class="paramtype">const Eigen::Matrix&lt; double, 8, 1 &gt; &amp;&#160;</td>
           <td class="paramname"><em>jointConfiguration</em>, </td>
@@ -945,7 +954,13 @@ Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const GripperState &amp;&#160;</td>
-          <td class="paramname"><em>state</em>&#160;</td>
+          <td class="paramname"><em>state</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>blockId</em>&#160;</td>
         </tr>
         <tr>
           <td></td>

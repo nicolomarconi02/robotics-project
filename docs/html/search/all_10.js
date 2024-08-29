@@ -1,12 +1,22 @@
 var searchData=
 [
-  ['size_118',['Size',['../classworld_1_1Size.html',1,'Size'],['../classblock_1_1Block.html#aa3d6656320f1a7278c0c2c7fdf07617c',1,'block.Block.size()'],['../classworld_1_1Model.html#aa3d6656320f1a7278c0c2c7fdf07617c',1,'world.Model.size()']]],
-  ['slerp_119',['slerp',['../utils_8cpp.html#ac280a6d90f85f2dd6265e8998e77fbae',1,'utils.cpp']]],
-  ['spawn_5fblock_120',['spawn_block',['../classspawner_1_1Spawner.html#a650ac272d070ea5a01650a78f8729587',1,'spawner::Spawner']]],
-  ['spawn_5fblocks_121',['spawn_blocks',['../classspawner_1_1Spawner.html#ac08a3f348cbca51ca7053cc0525dffb6',1,'spawner::Spawner']]],
-  ['spawn_5fcontent_122',['spawn_content',['../classspawner_1_1Spawner.html#a8abc55cc68a91c95038568d465b6bd2f',1,'spawner::Spawner']]],
-  ['spawn_5fmodel_123',['spawn_model',['../classspawner_1_1Spawner.html#a4731670afb5b68555fba8a2f97fe5b42',1,'spawner::Spawner']]],
-  ['spawner_124',['Spawner',['../classspawner_1_1Spawner.html',1,'Spawner'],['../namespacespawner.html',1,'spawner']]],
-  ['spawner_2epy_125',['spawner.py',['../spawner_8py.html',1,'']]],
-  ['start_5fservice_126',['start_service',['../classvision-test-robot_1_1VisionManagerClass.html#aea64221871c25d9f2062756e9dae1daa',1,'vision-test-robot.VisionManagerClass.start_service()'],['../classvision_1_1VisionManagerClass.html#aea64221871c25d9f2062756e9dae1daa',1,'vision.VisionManagerClass.start_service()']]]
+  ['generaltransformationmatrix_780',['generalTransformationMatrix',['../utils_8cpp.html#a1d009fa045c738c8e09a8addcd1e79e1',1,'utils.cpp']]],
+  ['generationlimits_781',['GenerationLimits',['../classworld_1_1GenerationLimits.html',1,'world']]],
+  ['get_5fepochs_782',['get_epochs',['../namespacerobotics__project__model.html#a3e957ae3cb6105ef50c448e85227f99a',1,'robotics_project_model']]],
+  ['get_5fimage_783',['get_image',['../classvision_1_1VisionManagerClass.html#a7bdb9d6ac27528c0c5b1f0f8f824c3da',1,'vision::VisionManagerClass']]],
+  ['get_5fmodel_5fsdf_784',['get_model_sdf',['../classspawner_1_1Spawner.html#a43c2345ee3a7359384ed28864c89de2a',1,'spawner::Spawner']]],
+  ['get_5fmovements_785',['get_movements',['../main_8cpp.html#a38205752fbfe7be47d8175a1064bbe38',1,'main.cpp']]],
+  ['get_5fquadrants_786',['get_quadrants',['../classvision_1_1ZedBlock.html#ac6b053e63107ffb01fb3435ccd10c948',1,'vision::ZedBlock']]],
+  ['get_5fvertexes_787',['get_vertexes',['../classblock_1_1Block.html#afe311f6c88542e3460a98891fbcee33a',1,'block::Block']]],
+  ['getblockid_788',['getBlockId',['../utils_8cpp.html#a13415a57ed8e98a4e9f8eed647fbb894',1,'utils.cpp']]],
+  ['getfinalposition_789',['getFinalPosition',['../utils_8cpp.html#a6566e6b31b7899da1d695b6ff5b9678a',1,'utils.cpp']]],
+  ['getjacobian_790',['getJacobian',['../utils_8cpp.html#a1447274ec77468a26698b8aec7e93c53',1,'utils.cpp']]],
+  ['getjointconfiguration_791',['getJointConfiguration',['../utils_8cpp.html#a5492329a3948d534b80f9752cf16688b',1,'utils.cpp']]],
+  ['getjointstate_792',['getJointState',['../utils_8cpp.html#a57010821353e69bd1451819cb4da2046',1,'utils.cpp']]],
+  ['getmovementdirection_793',['getMovementDirection',['../utils_8cpp.html#ad86588929549fd004350db152f49cd9f',1,'utils.cpp']]],
+  ['getnpointsoncircle_794',['getNPointsOnCircle',['../utils_8cpp.html#a1e73a0deacceec4ca66bb2ad65008445',1,'utils.cpp']]],
+  ['getpath_795',['getPath',['../movement_8cpp.html#a081ccdfb4ef3344a0836cc9f8a60b2ff',1,'movement.cpp']]],
+  ['getresponse_796',['getResponse',['../movement_8cpp.html#aafaf4687a2d03d499b34b9d073be1d26',1,'movement.cpp']]],
+  ['gripper_2dparams_797',['gripper-params',['../namespacegripper-params.html',1,'']]],
+  ['gripper_2dparams_2epy_798',['gripper-params.py',['../gripper-params_8py.html',1,'']]]
 ];

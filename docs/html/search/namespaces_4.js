@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['plot_5fpoints_176',['plot_points',['../namespaceplot__points.html',1,'']]]
+  ['gripper_2dparams_948',['gripper-params',['../namespacegripper-params.html',1,'']]]
 ];

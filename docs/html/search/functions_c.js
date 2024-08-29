@@ -1,8 +1,9 @@
 var searchData=
 [
-  ['slerp_256',['slerp',['../utils_8cpp.html#ac280a6d90f85f2dd6265e8998e77fbae',1,'utils.cpp']]],
-  ['spawn_5fblock_257',['spawn_block',['../classspawner_1_1Spawner.html#a650ac272d070ea5a01650a78f8729587',1,'spawner::Spawner']]],
-  ['spawn_5fblocks_258',['spawn_blocks',['../classspawner_1_1Spawner.html#ac08a3f348cbca51ca7053cc0525dffb6',1,'spawner::Spawner']]],
-  ['spawn_5fcontent_259',['spawn_content',['../classspawner_1_1Spawner.html#a8abc55cc68a91c95038568d465b6bd2f',1,'spawner::Spawner']]],
-  ['start_5fservice_260',['start_service',['../classvision-test-robot_1_1VisionManagerClass.html#aea64221871c25d9f2062756e9dae1daa',1,'vision-test-robot.VisionManagerClass.start_service()'],['../classvision_1_1VisionManagerClass.html#aea64221871c25d9f2062756e9dae1daa',1,'vision.VisionManagerClass.start_service()']]]
+  ['plot_1738',['plot',['../classvision_1_1ZedBlock.html#a01836a7c5c6b3e9ad04574417f852773',1,'vision::ZedBlock']]],
+  ['plot_5f2d_5fgraph_1739',['plot_2D_graph',['../namespaceplot__points.html#aeed528ff56299880d50d76ade08c29a2',1,'plot_points']]],
+  ['plot_5f3d_5fgraph_1740',['plot_3D_graph',['../namespaceplot__points.html#a54d2fa8079821c73e0595ec2fb050eae',1,'plot_points']]],
+  ['plot_5f3d_5fgraph_5fv2_1741',['plot_3D_graph_v2',['../namespaceplot__points.html#ab52f705d20b26b9527c72ad9721d8958',1,'plot_points']]],
+  ['predict_1742',['predict',['../classobject__detection_1_1Object__Detection.html#a964b8f0c7df90a288606de792ed346e6',1,'object_detection::Object_Detection']]],
+  ['print_1743',['print',['../classobject__detection_1_1Object__Detection.html#ad7c084a2747a8f250f695ac91df22846',1,'object_detection::Object_Detection']]]
 ];
