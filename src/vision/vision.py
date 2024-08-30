@@ -507,47 +507,6 @@ class VisionManagerClass():
 
         end_time = time.time()
         print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
-        self.filter_predictions()
-
-    def filter_predictions(self):
-            # removing wrong predictions, such as those that overlap with each other for major part of their areas.
-        # The prediction kept is the one with most confidence
-        prediction_combinations = combinations(self.predicted_objects, 2)
-        predictions_to_remove = []
-
-        for (prediction_a, prediction_b) in prediction_combinations:
-            x1a, y1a, x2a, y2a, confidence_a = (*[math.floor(x) for x in prediction_a[:4]], prediction_a[4])
-            area_a = (x2a - x1a) * (y2a - y1a)
-
-            x1b, y1b, x2b, y2b, confidence_b = (*[math.floor(x) for x in prediction_b[:4]], prediction_b[4])
-            area_b = (x2b - x1b) * (y2b - y1b)
-            
-            # compute intersection area
-            x1_int = max(x1a, x1b)
-            x2_int = min(x2a, x2b)
-            y1_int = max(y1a, y1b)
-            y2_int = min(y2a, y2b)
-            area_int = (x2_int - x1_int) * (y2_int - y1_int)
-
-            overlapRate = max(area_int/area_a, area_int/area_b)
-
-            # we have to remove one of the predictions, the one with least confidence
-            if overlapRate >= MAX_OVERLAP_RATE:
-                to_remove = prediction_a
-                if confidence_b < confidence_a:
-                    to_remove = prediction_b
-
-                # save the prediction to remove
-                predictions_to_remove.append(to_remove)
-
-                # and delete it from the coming combinations
-                prediction_combinations = [
-                    p for p in prediction_combinations if p[0] != to_remove and p[1] != to_remove 
-                ]
-
-        self.predicted_objects = [
-            p for p in self.predicted_objects if p not in predictions_to_remove
-        ]
 
 
     def get_image(self, image: Image):
