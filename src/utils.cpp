@@ -508,9 +508,13 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
 }
 
 Eigen::Matrix<double, 6, 1> computeQdot0(const Eigen::Matrix<double, 6, 1>& jointsState) {
-   static double k0 = 200;
+   static double k0 = 20;
    Eigen::Matrix<double, 6, 1> qdot0;
-   qdot0 = -k0 * jointsState;
+   Eigen::Matrix<double, 6, 1> jsElaborated(
+       jointsState(0) / (std::pow(2.0 * M_PI, 2)), jointsState(1) / (std::pow(2.0 * M_PI, 2)),
+       jointsState(2) / (std::pow(2.0 * M_PI, 2)), jointsState(3) / (std::pow(2.0 * M_PI, 2)),
+       jointsState(4) / (std::pow(2.0 * M_PI, 2)), jointsState(5) / (std::pow(2.0 * M_PI, 2)));
+   qdot0 = -k0 * (1.0 / 6.0) * jsElaborated;
    return qdot0;
 }
 
