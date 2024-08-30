@@ -34,7 +34,7 @@ class Block:
         self.center = Coord(
             x = self.x + self.size.width / 2 * math.cos(self.angle) - self.size.length / 2 * math.sin(self.angle), 
             y = self.y + self.size.length / 2 * math.cos(self.angle) + self.size.width / 2 * math.sin(self.angle), 
-            z = TABLE_HEIGHT + Models[model].factor.height * 0.019 / 2
+            z = TABLE_HEIGHT + Models[model].center.height
         )
         
         if self.model in ['X2-Y2-Z2', 'X2-Y2-Z2-FILLET']:

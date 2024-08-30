@@ -37,6 +37,7 @@ from robotics_project.srv import GetBlocks, GetBlocksResponse
 
 from datetime import datetime
 import os
+import re
 
 from geometry_msgs.msg import Pose
 
@@ -58,7 +59,7 @@ MODEL = "dependencies/robotics_project_vision/best.pt"
 ERROR_ON_Y = 30             # error found empirically. The predictor translate of 25 pixel the y coordinates of the bbox
 
 ## z-value for which we are sure to not intersect with the work-station/ground
-BLOCK_LEVEL = 0.875 
+BLOCK_LEVEL = 0.872 
 ## Taking only ERROR_Z decimals in the z-values to create the key of the point-cloud-dictionary       
 ERROR_Z = 3     
 ## Create graphs to see the blocks detected via YoloV8 and Zed-Camera          
@@ -138,6 +139,7 @@ class ZedBlock:
                 self.compute_yaw()
             else:
                 self.mid = (self.p1 + self.vertex)/2
+                self.mid[0] += 0.019
 
     def get_quadrants(self):
         """
@@ -269,15 +271,13 @@ class ZedBlock:
         self.mid = (self.p1 + self.p2) / 2
 
     def compute_mid_3d(self):
-        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + (UNIT_HEIGHT*Models[self.yolo_prediction].factor.height)/2)]
-        if self.yolo_prediction in ['X2-Y2-Z2', 'X2-Y2-Z2-FILLET']:
-            self.mid[2] += 0.01
+        self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + Models[self.yolo_prediction].center.height)]
 
     def compute_yaw(self):
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
     
     def __str__(self):
-        return f"ZedBlock(vertex={self.vertex}, p1={self.p1}, v1={self.v1}, n1={self.n1}, p2={self.p2}, v2={self.v2}, n2={self.n2}, angle={self.angle}, accuracy={self.accuracy}, mid={self.mid}, yaw={self.yaw}, bbox_id={self.yolo_bbox_id})"
+        return f"ZedBlock(vertex={self.vertex}, p1={self.p1}, v1={self.v1}, n1={self.n1}, p2={self.p2}, v2={self.v2}, n2={self.n2}, angle={self.angle}, accuracy={self.accuracy}, mid={self.mid}, yaw={self.yaw}, yolo_bbox_id={self.yolo_bbox_id}, yolo_confidence={self.yolo_confidence}, yolo_prediction={self.yolo_prediction})"
 
     def plot(self):
         # Plot v1 (longest side) in red, v2 in blue
@@ -589,54 +589,76 @@ class VisionManagerClass():
             for bbox in self.yolo_blocks:
                 if bbox.delaunay.find_simplex(block.mid) >= 0:
                     if discard:     # The block is inside multiple bounding boxes
+                        print('  -> Il blocco è stato scartato. Troppe bbox.')
+                        print()
+                        print(block)
+                        print("-----------------------------")
                         block.yolo_bbox_id = None
                         break
                     else:
+                        print("  -> Prima bbox trovata")
                         discard = True
                         block.yolo_bbox_id = self.yolo_blocks.index(bbox)
             
             if block.yolo_bbox_id is not None:
+
+                print("  -> Blocco con bbox")
                 
                 # Copy all the info in the ZedBlock object
                 block.yolo_confidence = self.yolo_blocks[block.yolo_bbox_id].confidence
                 block.yolo_prediction = self.yolo_blocks[block.yolo_bbox_id].obj_class
 
                 if block.yolo_confidence > 0.65:
+                    print("  -> il blocco ha confidence >0.65")
                     block.compute_mid_3d()
                     v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                    v1_norm += (block.n1 / UNIT_LENGTH - v1_norm > 0.05)
                     v2_norm = round(block.n2 / UNIT_LENGTH,0)
+                    v2_norm += (block.n2 / UNIT_LENGTH - v2_norm > 0.05)
 
                     expected_sizes = Models[block.yolo_prediction].factor
                     expected_max_size = max(expected_sizes.width, expected_sizes.length)
                     expected_min_size = min(expected_sizes.width, expected_sizes.length)
                     
                     if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                        print(f"  <- BLOCCO PRESO con v1_norm={v1_norm}, v2_norm={v2_norm}")
                         self.blocks_to_take.append(block)
+            
+                print()
+                print(block)
+                print("-----------------------------")
 
         first_with_box = -1
         if len(self.blocks_to_take) == 0:
             # the idea is: take only one block, the one that respects some pre-defined requisites
             # and is the closer to the zed camera (the vertex has a smaller x as possible)
 
+            print("  -> Lista blocchi da prendere vuota")
+
             # Order the blocks for x closer to 0
             self.zed_blocks = sorted(self.zed_blocks, key=lambda block: block.vertex[0])
             for block in self.zed_blocks:
                 if block.yolo_bbox_id is not None:
+                    print("  -> Blocco con box")
                     taken = False
                     if first_with_box<0 :
                         first_with_box = self.zed_blocks.index(block)
 
                     if block.n2 == 0:
+                        print("  -> Un solo lato")
+
                         # The ZedCamera sees only one side, therefore we have to see whether this side matches
                         # one of the sides predicted by the model
 
                         v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                        v1_norm += (block.n1 / UNIT_LENGTH - v1_norm > 0.05)
 
                         expected_sizes = Models[block.yolo_prediction].factor
                         expected_max_size = max(expected_sizes.width, expected_sizes.length)
                         expected_min_size = min(expected_sizes.width, expected_sizes.length)
 
                         if v1_norm  == expected_max_size:
+                            print("  -> Il lato è quello big")
                             block.p2 = np.array([block.vertex[0] + expected_min_size*UNIT_LENGTH/2, block.vertex[1]])
                             block.v2 = block.p2 - block.vertex
                             block.n2 = round(np.linalg.norm(block.v2),3)
@@ -647,6 +669,7 @@ class VisionManagerClass():
                             taken = True
 
                         elif v1_norm == expected_min_size:
+                            print("  -> Il lato è quello small")
                             block.p2 = np.array([block.vertex[0] + expected_max_size*UNIT_LENGTH/2, block.vertex[1]])
                             block.v2 = block.p2 - block.vertex
                             block.n2 = round(np.linalg.norm(block.v2),3)
@@ -661,41 +684,99 @@ class VisionManagerClass():
                             taken = True
 
                     else:
+
+                        print("  -> Due lati")
+
                         # If the block is not a one-detected-side one, then we could check if the model
                         # predicted the right sides' length
 
                         v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                        v1_norm += (block.n1 / UNIT_LENGTH - v1_norm > 0.05)
                         v2_norm = round(block.n2 / UNIT_LENGTH,0)
+                        v2_norm += (block.n2 / UNIT_LENGTH - v2_norm > 0.05)
 
                         expected_sizes = Models[block.yolo_prediction].factor
                         expected_max_size = max(expected_sizes.width, expected_sizes.length)
                         expected_min_size = min(expected_sizes.width, expected_sizes.length)
                         
                         if v1_norm == expected_max_size and v2_norm == expected_min_size:
+                            print("  -> Lati riconosciuti correttamente [quindi confidence < 0.65]")
                             block.compute_mid_3d()
                             taken = True
+                        else:
+                            print(f"  <- Lati SBAGLIATI con v1_norm={v1_norm}, v2_norm={v2_norm}")
 
                     # If the object is taken, just pass this one
                     if taken:
+                        print("  <- BLOCCO PRESO")
+                        print()
+                        print(block)
+                        print("-----------------------------")
+
                         self.blocks_to_take.append(block)
                         return
                     
             # If nothing better was found, we return the block closer to the camera which was identified
             # from the model, using the z-value from the model
             if first_with_box != -1 :
+                print("  -> Nothing better was found. Block with bbox")
+                print("  -> We will use the x and y values from the point cloud, z (and prediction) from the model.")
+                print("  <- BLOCCO PRESO")
+
                 block = self.zed_blocks[first_with_box]
                 block.compute_mid_3d()
+                
+                # change yolo prediction
+                height_factor = float(re.findall(r'[X,Y,Z][0-9]', block.yolo_prediction)[2][1:])
+                last_factor = block.yolo_prediction.split('-')[-1]
+                is_special = last_factor[-1].isalpha()
+
+                new_prediction = f"X{int(v2_norm)}-Y{int(v1_norm)}-Z{int(height_factor)}"
+                if is_special:
+                    special_prediction = f"{new_prediction}-{last_factor}"
+                    try:
+                        if Models[special_prediction] is not None:
+                            new_prediction = special_prediction
+                    except KeyError:
+                        pass
+                try:
+                    if Models[new_prediction] is not None:
+                        block.yolo_prediction = new_prediction
+                except KeyError:
+                    pass
+                ######
+
                 self.blocks_to_take.append(block)
+
+                print(block)
+                print("-----------------------------")
             else:
+                print("  -> Nothing better was found. Block WITHOUT bbox")
                 # We still have one or more block on the working-table, but these are not detecteed by the model
                 block = self.zed_blocks[0]
                 if block.v2 is not None:
-                    v1_norm = max(int(round(block.n1 / UNIT_LENGTH,0)), 1)
-                    v2_norm = max(int(round(block.n2 / UNIT_LENGTH,0)), 1)
+
+                    v1_norm = round(block.n1 / UNIT_LENGTH,0)
+                    v1_norm += (block.n1 / UNIT_LENGTH - v1_norm > 0.05)
+                    v2_norm = round(block.n2 / UNIT_LENGTH,0)
+                    v2_norm += (block.n2 / UNIT_LENGTH - v2_norm > 0.05)
+
+                    v1_norm = max(int(v1_norm), 1)
+                    v2_norm = max(int(v2_norm), 1)
                     block.yolo_prediction = f"X{v2_norm}-Y{v1_norm}-Z2"
                     block.yolo_bbox_id = -1
                     block.compute_mid_3d()
                     self.blocks_to_take.append(block)
+
+                    
+                    print("  -> We will use the x and y values from the point cloud, z=2. con v1_norm={v1_norm}, v2_norm={v2_norm}")
+                    print("  <- BLOCCO PRESO")
+                    print()
+                    print(block)
+                    print("-----------------------------")
+                else:
+                    print("  -> SIAMO NELLA CACCA.")
+
 
         return
 

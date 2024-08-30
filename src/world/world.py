@@ -30,10 +30,29 @@ class Size:
     height: float
 
 class Model:
-    def __init__(self, id : str, size : Size, factor: Size):
+    def __init__(self, id : str, factor: Size):
         self.id = id
-        self.size = size
         self.factor = factor
+
+        # compute the actual sizes of each side of the model
+        self.size = Size(
+            width  = float(factor.width) * UNIT_LENGTH,
+            length = float(factor.length) * UNIT_LENGTH,
+            height = float(factor.height) * UNIT_HEIGHT 
+        )
+
+        # compute the center of the model
+        self.center = Size(
+            width  = self.size.width/2,
+            length = self.size.length/2,
+            height = self.size.height/2 
+        )
+
+        # based on the type of the block
+        if factor.height == 1:
+            self.center.height -= 0.005
+        elif factor.width == 2 and factor.length == 2 and factor.height == 2:
+            self.center.height += 0.01
 
     def __str__(self):
         return f'{self.id} with size (width={self.size.width}, length={self.size.length}, height={self.size.height})'
@@ -45,10 +64,6 @@ def compute_model(model : str):
 
     # each factor gets muliplied by the unit length
     return Model(model, Size(
-        width  = float(factors[0][1:]) * UNIT_LENGTH, # X#
-        length = float(factors[1][1:]) * UNIT_LENGTH, # Y#
-        height = float(factors[2][1:]) * UNIT_LENGTH  # Z#
-    ), Size(
         width  = float(factors[0][1:]), # X#
         length = float(factors[1][1:]), # Y#
         height = float(factors[2][1:])  # Z#

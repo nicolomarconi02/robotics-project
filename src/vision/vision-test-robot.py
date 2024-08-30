@@ -47,7 +47,7 @@ class VisionManagerClass():
         blocks_id = []
         n_blocks = len(self.blocks)
         n_moved = np.int8(req.n_moved_blocks)
-        finished = len(Models) - (n_moved + n_blocks) == 0
+        finished = True
 
         print(f'The blocks to be SENT are {n_blocks}, the following lines describe them')
 
