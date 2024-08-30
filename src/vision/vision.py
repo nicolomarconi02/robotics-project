@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """!
-Starts a ROS service that takes a sensor_msgs/Image and a _____ as input, elaborates the data in order to detect 
+Starts a ROS service that takes a sensor_msgs/Image and a sensor_msgs/pc2 as input, elaborates the data in order to detect 
 and locate the blocks on the working table, and returns geometry_msgs/Pose[] as output.
 
 The blocks are detected via a YoloV8 model, from which a prediction (and its confidence) is obtained. The point 
@@ -52,8 +52,7 @@ ROTATIONAL_MATRIX = np.array([[ 0.     , -0.49948,  0.86632],
 ZED_WRT_WORLD = np.array([-0.4 ,  0.59,  1.4 ])
 
 ## Path where the YoloV8 model (.pt) can be found 
-MODEL = "dependencies/robotics_project_vision/best.pt"
-ERROR_ON_Y = 30             # error found empirically. The predictor translate of 25 pixel the y coordinates of the bbox
+MODEL = "dependencies/robotics_project_vision/best.pt"           
 
 ## z-value for which we are sure to not intersect with the work-station/ground
 BLOCK_LEVEL = 0.872 
@@ -62,26 +61,38 @@ ERROR_Z = 3
 ## Create graphs to see the blocks detected via YoloV8 and Zed-Camera          
 PLOTH_GRAPHS = True
 
-MAX_OVERLAP_RATE = 0.7
-
+## How to round the side of the blocks so that they are normalized to the prediction values
 NORM_TRESHOLD = 0.12
 
+## Debug flag
 DEBUG = False
 
 # move to repo
 from sklearn.cluster import DBSCAN
 class Manage_Point_Cloud():
+    """!
+    Class to manage the Point Cloud
+    """
+    
     def __init__(self, rotational_matrix, zed_wrt_world):
-        """!
-        Class 
-        """
 
+        ## 3D Point Cloud
         self.point_cloud2_msg = None
 
+        ## Rotation matrix from ZED Camera to World
         self.rotational_matrix = rotational_matrix
+        ## Transformation from ZED Camera to the World
         self.zed_wrt_world = zed_wrt_world
     
     def extract_point_world(self, points_2d, dim):
+        """!
+        Extracts the 3D points in world frame given a list of 2D points (pixel in the image).
+
+        @param points_2d: list of points (pixel) in 2D
+        @param dim: numer of dimensions we want to extract from the point cloud (dim=2 means (x,y), dim=3 means (x,y,z))
+
+        @return Returns a list of 3d points in world frame
+        """
 
         points_3d_world = []
         for data in point_cloud2.read_points(self.point_cloud2_msg, field_names=['x','y','z'], skip_nans=True, uvs=points_2d):
@@ -98,37 +109,74 @@ class Manage_Point_Cloud():
         return points_3d_world
 
 def exchange (a,b):
+    """!
+    Exchange the a value with the b value.
+
+    @param a: first value
+    @param b: second value
+
+    @return Returns the tuple (b,a)
+    """
     return b,a
 
 class ZedBlock:
-    """
-    Class to represent the blocks detected from the analysis of the point cloud given by the Zed Camera
+    """!
+    Class to represent the blocks detected from the analysis of the point cloud given by the Zed Camera.
     """
 
     def __init__(self, cluster_points=None):
+        ## Cluster points
         self.cluster_points = cluster_points
         
-        self.vertex : np.ndarray = None        # x,y coordinates of the vertex point
+        ## (x,y) coordinates of the vertex point
+        self.vertex = None  
+        self.vertex : np.ndarray      
 
-        # longest side
-        self.p1 : np.ndarray = None            # x,y coordinates of the point that, together with the vertex, generates the longest side 
-        self.v1 : np.ndarray = None            # vector that represents the longest side
-        self.n1 : float = 0                    # length (norm) of the longest side
-        # shorter side
-        self.p2 : np.ndarray = None            # x,y coordinates of the point that, together with the vertex, generates the shortest side 
-        self.v2 : np.ndarray = None            # vector that represents the shortest side
-        self.n2 : float = 0                    # length (norm) of the shortest side
+        ## (x,y) coordinates of the point that, together with the vertex, generates the longest side 
+        self.p1 = None  
+        self.p1 : np.ndarray
+
+        ## Vector that represents the longest side         
+        self.v1 = None
+        self.v1 : np.ndarray
+
+        ## Length (norm) of the longest side            
+        self.n1 = 0  
+        self.n1 : float  
+
+        ## (x,y) coordinates of the point that, together with the vertex, generates the shortest side 
+        self.p2 = None 
+        self.p2 : np.ndarray  
+
+        ## Vector that represents the shortest side
+        self.v2 = None  
+        self.v2 : np.ndarray 
+
+        ## Length (norm) of the shortest side         
+        self.n2 = 0  
+        self.n2 : float                  
         
-        self.angle : float = None              # angle [degrees] between the two sides (should be around 90°)
-        self.accuracy : float = None           # accuracy defined as "how far away from 90° the angle between v1 and v2 is"
+        ## Angle [degrees] between the two sides (should be around 90°)
+        self.angle = None 
+        self.angle : float   
 
-        self.mid : np.ndarray = None           # x,y coordinates of the center of the block
-                        
-        self.yaw : float = None                # yaw [radians] of the block, aka rotation w.r.t. z axis
+        ## Accuracy defined as "how far away from 90° the angle between v1 and v2 is"        
+        self.accuracy = None
+        self.accuracy : float           
 
-        # yolo parameters
+        ## (x,y) coordinates of the center of the block
+        self.mid = None  
+        self.mid : np.ndarray         
+
+        ## Yaw [radians] of the block, aka rotation w.r.t. z axis 
+        self.yaw = None   
+        self.yaw : float
+
+        ## Yolo bbox id
         self.yolo_bbox_id = None
+        ## Yolo confidence
         self.yolo_confidence = None
+        ## Yolo prediction
         self.yolo_prediction = None
 
         if self.cluster_points is not None:
@@ -143,8 +191,10 @@ class ZedBlock:
                 self.mid[0] += UNIT_HEIGHT
 
     def get_quadrants(self):
-        """
-        This method returns the cluster points on the 4 quadrants centered on the vertex
+        """!
+        Determines the cluster points on the 4 quadrants centered on the vertex.
+
+        @return Returns the cluster points on the 4 quadrants centered on the vertex.
         """
         origin = self.vertex[:]
         points = self.cluster_points[:]
@@ -160,6 +210,11 @@ class ZedBlock:
             ]
 
     def compute_vertex(self):
+        """!
+        Computes the vertexes of the block.
+
+        @return Nothing, it changes the object variables.
+        """
         point = self.cluster_points[:,0].argmin()
         self.vertex = np.array(self.cluster_points[point,:])
 
@@ -176,6 +231,11 @@ class ZedBlock:
 
 
     def compute_sides(self):
+        """!
+        Computes the sides of the block.
+
+        @return Nothing, it changes the object variables.
+        """
         q1_points, q2_points, q3_points, q4_points = [np.array(q) for q in self.get_quadrants()]
         q1, q2, q3, q4 = [len(q) for q in [q1_points, q2_points, q3_points, q4_points]]
 
@@ -243,8 +303,10 @@ class ZedBlock:
             self.n2 = n2
 
     def compute_angle(self):
-        """
-        Function to compute the angle between v1 and v2
+        """!
+        Computes the angle between the two sides.
+
+        @return Nothing, it changes the object variables.
         """
 
         # Check for zero magnitude vectors
@@ -269,18 +331,38 @@ class ZedBlock:
         self.accuracy = abs(self.angle - 90)
 
     def compute_mid(self):
+        """!
+        Computes the (x,y) components of the middle (center) point of the block.
+
+        @return Nothing, it changes the object variables.
+        """
         self.mid = (self.p1 + self.p2) / 2
 
     def compute_mid_3d(self):
+        """!
+        Computes the z component of the middle (center) point of the block.
+
+        @return Nothing, it changes the object variables.
+        """
         self.mid = [self.mid[0], self.mid[1], (TABLE_HEIGHT + Models[self.yolo_prediction].center.height)]
 
     def compute_yaw(self):
+        """!
+        Computes the yaw of the block.
+
+        @return Nothing, it changes the object variables.
+        """
         self.yaw = np.arctan2(self.v1[1],self.v1[0])
     
     def __str__(self):
         return f"ZedBlock(vertex={self.vertex}, p1={self.p1}, v1={self.v1}, n1={self.n1}, p2={self.p2}, v2={self.v2}, n2={self.n2}, angle={self.angle}, accuracy={self.accuracy}, mid={self.mid}, yaw={self.yaw}, yolo_bbox_id={self.yolo_bbox_id}, yolo_confidence={self.yolo_confidence}, yolo_prediction={self.yolo_prediction})"
 
     def plot(self):
+        """!
+        Allows the plotting of the blocks.
+
+        @return Nothing, it changes the object variables.
+        """
         # Plot v1 (longest side) in red, v2 in blue
         plt.quiver(self.vertex[0], self.vertex[1], self.v1[0], self.v1[1], angles='xy', scale_units='xy', scale=1, color='r', label='V1')
         if self.v2 is not None:
@@ -289,24 +371,38 @@ class ZedBlock:
             plt.plot(self.mid[0], self.mid[1], 'gx')
 
 class VisionManagerClass():
+    """!
+    Class to manage the Vision Process. It creates a Object_Detection and a Manage_Point_Cloud 
+    instances to use the model and manage the point cloud respectively.
+
+    It also manages the main important variables using during the vision process, such as:
+    - self.zed_blocks[], which contains the list of blocks and all the information detected by the point cloud. 
+    This list is actually the most important one since the information we discover about each object are saved all here
+    - self.yolo_blocks[], which contains the list of blocks and all the information predicted by the yolo model
+    - self.blocks_to_take[], in which the blocks correctly classified are added in order to be returned to the manipulator
+    - self.has_finished_blocks, a boolean which indicates when the vision process is finished, aka there are no more blocks on the working table
+    """
 
     def __init__(self, robot_name="ur5"):
-        """!
-        
-        """
 
+        ## An instance of Object_Detection Class which executes the predictions with the YoloV8 model
         self.predictor = vision.Object_Detection(model=MODEL)
+        ## An instance of the Manage_Point_Cloud which manages the Point Cloud
         self.manage_cloud = Manage_Point_Cloud(rotational_matrix=ROTATIONAL_MATRIX, zed_wrt_world=ZED_WRT_WORLD)
         
-        # Image from ZED Node
+        ## Image from ZED Node
         self.image_msg = ros.wait_for_message("/ur5/zed_node/left/image_rect_color", Image)
 
-        # Point cloud from ZED Node
+        ## Point cloud from ZED Node
         self.point_cloud2_msg = ros.wait_for_message("/ur5/zed_node/point_cloud/cloud_registered", PointCloud2)
         
+        ## List of blocks and all the information detected by the point cloud. All information about each object are saved here
         self.zed_blocks = []
+        ## List of blocks and all the information predicted by the yolo model
         self.yolo_blocks = []
+        ## List of blocks correctly classified that will be returned to the caller
         self.blocks_to_take = []
+        ## Boolean which indicates when the vision process is finished, aka there are no more blocks on the working table
         self.has_finished_blocks = False
         plt.clf()
 
@@ -315,13 +411,13 @@ class VisionManagerClass():
 
 
     def digest_ZED_data(self, image : Image, pc2 : PointCloud2):
-        """
-        This function digests the data obtained from the camera.
-        Arguments:
-            image: the image itself
-            pc2: point cloud representation
-        Returns:
-            Nothing as now
+        """!
+        It digests the data obtained from the camera.
+        
+        @param image: the image itself
+        @param pc2: point cloud representation
+        
+        @return Nothing, it changes the object variables.
         """
 
         imgName = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -331,7 +427,7 @@ class VisionManagerClass():
         threadObjDetection.start()
 
 
-        ################ POINT CLOUD ################
+        # ############### POINT CLOUD ################
 
         print("> POINT CLOUD PROCESS: STARTED")
         start_time = time.time()
@@ -418,7 +514,7 @@ class VisionManagerClass():
         threadObjDetection.join()
 
 
-        ###################### BBOX IN GRAFICO 2D #######################
+        # ##################### BBOX IN GRAFICO 2D #######################
 
         # per ciascun oggetto riconosciuto dalla rete neurale, riportiamo la bbox nel mondo 2d (visto da sopra)
         # valutiamo quindi se il centro dell'oggetto riconosciuto tramite point cloud sta in una sola bbox o più
@@ -428,10 +524,17 @@ class VisionManagerClass():
         from scipy.spatial import ConvexHull, Delaunay
 
         class YoloDetectionObj:
+            """!
+            Class to save the predictions and the information returned from the model prediction.
+            """
             def __init__ (self, obj_class: int, confidence: float, delaunay: Delaunay, id_box):
+                ## Object class detected by the model
                 self.obj_class = obj_class
+                ## Confidence detected by the model
                 self.confidence = confidence
+                ## Delaunay object to represent the bbox
                 self.delaunay = delaunay
+                ## ID bbox
                 self.id_box = id_box
                 
         for prediction in self.predicted_objects:
@@ -488,28 +591,38 @@ class VisionManagerClass():
                     ")
 
     def object_detection(self, imgName: str, image: Image):
+        """!
+        Manages the object detection process. This is threaded during the execution of the vision module.
+
+        @param imgName: Name of the directory in which save the visual representation of the predictions.
+        @param image: File of the image on which perform the prediction
+
+        @return Nothing, it changes the object variables.
+        """
 
         # convert received image (bgr8 format) to a cv2 image
         image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
         cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
-        ###################### OBJECT DETECTION #######################
+        # ##################### OBJECT DETECTION #######################
         
         print("> OBJECT DETECTION PROCESS: STARTED")
         start_time = time.time()
 
         # predict with the object-detection model
         prediction_path = f"predictions/{imgName}/yoloV8"
+        ## List of predicted objects from the YoloV8 model
         self.predicted_objects = self.predictor.predict(image=image_cv2, path_to_save_prediction=prediction_path, top_crop=370, bottom_crop=130, print_to_console=False)
 
         end_time = time.time()
         print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
 
     def choose_good_objects(self):
-        """
-        Algorithm that allows to merge the info obtained via the object detection made by the model and the point cloud info.
-        The blocks are chosen as follow:
-        #TODO
+        """!
+        Algorithm that allows to merge the info obtained via the object detection made by the model and the point cloud info. 
+        It also chooses which blocks are "correctly detected", the ones that will be returned to the manipulator.
+
+        @return Nothing, it changes the object variables.
         """
 
         for block in self.zed_blocks:
@@ -732,12 +845,10 @@ class VisionManagerClass():
         return
 
     def handle_get_blocks(self):
-        """
+        """!
         This function gets called in order to reply to the service's calls coming from the clients.
-        Arguments:
-            Nothing
-        Returns:
-            Nothing
+        
+        @return Nothing
         """
 
         print('VISION PROCESS: handle_obtain_blocks CALLED')
