@@ -6,6 +6,7 @@
 #include "robotics_project/main.h"
 
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <thread>
 
@@ -14,7 +15,7 @@
 int main(int argc, char **argv) {
    /* Initialize ROS node's name */
    ros::init(argc, argv, "robotics_project_main");
-   std::cout << "MAIN Process: STARTED" << std::endl;
+   std::cout << "CLIENT Process: STARTED" << std::endl;
 
    // ROS handler
    ros::NodeHandle n;
@@ -38,13 +39,13 @@ int main(int argc, char **argv) {
    int n_blocks = 0;
 
    static bool hasVisionFinished = false;
-   static int8_t moved = 0;
    // Continue until the vision module has finished
    while (!hasVisionFinished) {
-      vision_srv.request.n_moved_blocks = moved;
       // Call the vision module
       if (vision_client.call(vision_srv)) {
          n_blocks = vision_srv.response.n_blocks;
+         std::cout << "Successfully called the VISION module: " << n_blocks << " block" << (n_blocks != 1 ? "s" : "")
+                   << " received" << std::endl;
          hasVisionFinished = vision_srv.response.finished;
          // Iterate over the recognized blocks
          for (int i = 0; i < n_blocks; i++) {
@@ -64,9 +65,9 @@ int main(int argc, char **argv) {
 
             float angle = yaw * 180 / M_PI;
 
-            std::cout << "MAIN Process: Transmitting block " << i << " of type " << block_id << " and centered in ("
-                      << world_point[0] << ", " << world_point[1] << ", " << world_point[2] << ") with an angle of "
-                      << angle << "° = " << yaw << " rads" << std::endl;
+            std::cout << "Block " << i + 1 << ": " << block_id << " in (" << std::setprecision(3) << world_point[0]
+                      << ", " << world_point[1] << ", " << world_point[2] << "), angle = " << (int)angle
+                      << "° = " << yaw << " rad" << std::endl;
 
             // Block transmission to movement module
             srv.request.pose.position.x = world_point[0];
@@ -82,27 +83,26 @@ int main(int argc, char **argv) {
                // Get the movements from the response
                movements = get_movements(srv.response);
                if (movements.rows() <= 0) {
-                  std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
+                  std::cerr << "No movements to be made | block " << i + 1 << std::endl;
                   continue;
                }
-               std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
-               moved++;
+               std::cout << "Transmitting movements | block " << i + 1 << std::endl;
                // Send the movements to the robot
                move(pub, movements);
             } else {
-               std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
+               std::cerr << "Failed to call the MOVEMENT HANDLER module | block " << i + 1 << std::endl;
                continue;
             }
          }
       } else {
-         std::cerr << "MAIN Process: Failed to call the VISION module" << std::endl;
+         std::cerr << "Failed to call the VISION module" << std::endl;
          // Wait for 5 seconds before trying again if the vision module is not ready
          std::this_thread::sleep_for(std::chrono::seconds(5));
          continue;
       }
    }
 
-   std::cout << "MAIN Process: ENDED" << std::endl;
+   std::cout << "CLIENT Process: ENDED" << std::endl;
    return 0;
 }
 

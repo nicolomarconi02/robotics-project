@@ -27,6 +27,14 @@ ifeq (position-blocks,$(firstword $(MAKECMDGOALS)))
   $(eval $(POSITION_ARGS):;@:)
 endif
 
+# position-blocks arguments
+ifeq (run-vision,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "run"
+  VISION_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(VISION_ARGS):;@:)
+endif
+
 build-pkg:
 	@${BUILD_COMMAND} -C ${WORKSPACE_PATH} --pkg ${PROJECT_NAME}
 	@make manage_services && make import_services
@@ -53,7 +61,7 @@ run-movement:
 	@${SOURCE} && rosrun ${PROJECT_NAME} movement_handler
 
 run-vision: camera-rolls predictions
-	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision.py
+	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision.py ${VISION_ARGS}
 
 run-vision-test-robot: camera-rolls predictions
 	@export PYTHONPATH=$$PYTHONPATH:${DEPENDENCIES_PATH} && ${SOURCE} && rosrun ${PROJECT_NAME} vision-test-robot.py

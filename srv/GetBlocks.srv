@@ -1,4 +1,3 @@
-int8 n_moved_blocks
 ---
 geometry_msgs/Pose[] poses
 string[] blocks_id
