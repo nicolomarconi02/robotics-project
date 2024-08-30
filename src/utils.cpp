@@ -466,7 +466,7 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
 
       jacobian_instantK = getJacobian(jointState_instantK);
       // set the maximum damping factor
-      static double lambda0 = 1.0e-8;
+      static double lambda0 = 1.0e-3;
       // set the threshold for the determinant
       static double wt = 0.24;
       // compute the determinant of JJT
