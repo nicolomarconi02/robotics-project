@@ -1,4 +1,8 @@
-/* Header */
+/*!
+    @file main.cpp
+    @brief Functions definition of the client service that communicates with the vision node and the movement_handler
+    @author Nicolo' Marconi and Nizar Nadif
+*/
 #include "robotics_project/main.h"
 
 #include <chrono>
@@ -24,35 +28,25 @@ int main(int argc, char **argv) {
    robotics_project::MovementHandler srv;
 
    ros::NodeHandle node_handler;
+   // Publisher to the robot
    ros::Publisher pub =
        node_handler.advertise<std_msgs::Float64MultiArray>("/ur5/joint_group_pos_controller/command", 10);
    Path movements;
    Eigen::Vector3d world_point;
    Eigen::Quaterniond world_orientation;
    std::string block_id;
-   int n_blocks = N_BLOCKS;
-
-   Eigen::Matrix<double, 9, 3> world_points{{1.0, 0.8, 1.025},     {1.0, 0.15, 1.225},     {0.0, 0.15, 1.225},
-                                            {0.0, 0.8, 1.025},     {-0.001, 0.055, 1.225}, {0.549, 0.089, 1.225},
-                                            {0.218, 0.649, 1.070}, {0.636, 0.5, 1.009},    {0.326, 0.307, 1.070}};
-   n_blocks = world_points.rows();
-   Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
-   Eigen::Quaterniond rotation_quaternion(rotation_matrix);
-   world_orientation = rotation_quaternion;
-   std::vector<std::string> blocks_id{
-       "X1-Y1-Z2", "X1-Y2-Z1",        "X1-Y2-Z2", "X1-Y2-Z2-CHAMFER", "X1-Y2-Z2-TWINFILLET",
-       "X1-Y3-Z2", "X1-Y3-Z2-FILLET", "X1-Y4-Z1", "X1-Y4-Z2"};
-   // for-each block, move
+   int n_blocks = 0;
 
    static bool hasVisionFinished = false;
    static int8_t moved = 0;
-   // for (int8_t moved = 0; !hasVisionFinished; moved++) {
+   // Continue until the vision module has finished
    while (!hasVisionFinished) {
-      // when the vision module is ready, uncomment this block
       vision_srv.request.n_moved_blocks = moved;
+      // Call the vision module
       if (vision_client.call(vision_srv)) {
          n_blocks = vision_srv.response.n_blocks;
          hasVisionFinished = vision_srv.response.finished;
+         // Iterate over the recognized blocks
          for (int i = 0; i < n_blocks; i++) {
             world_point << vision_srv.response.poses[i].position.x, vision_srv.response.poses[i].position.y,
                 vision_srv.response.poses[i].position.z;
@@ -60,8 +54,8 @@ int main(int argc, char **argv) {
                 vision_srv.response.poses[i].orientation.w, vision_srv.response.poses[i].orientation.x,
                 vision_srv.response.poses[i].orientation.y, vision_srv.response.poses[i].orientation.z);
             block_id = vision_srv.response.blocks_id[i];
-            float yaw = std::acos(vision_srv.response.poses[i].orientation.z) * 2;
 
+            float yaw = std::acos(vision_srv.response.poses[i].orientation.z) * 2;
             if (yaw > M_PI) {
                yaw -= 2 * M_PI;
             } else if (yaw < -M_PI) {
@@ -83,8 +77,9 @@ int main(int argc, char **argv) {
             srv.request.pose.orientation.z = world_orientation.z();
             srv.request.pose.orientation.w = world_orientation.w();
             srv.request.block_id = block_id;
-            /* Import the required movements from the module */
+            // Call the movement handler module
             if (service_client.call(srv)) {
+               // Get the movements from the response
                movements = get_movements(srv.response);
                if (movements.rows() <= 0) {
                   std::cerr << "MAIN Process: No movements to be made | block " << i << std::endl;
@@ -92,6 +87,7 @@ int main(int argc, char **argv) {
                }
                std::cout << "MAIN Process: Transmitting movements | block " << i << std::endl;
                moved++;
+               // Send the movements to the robot
                move(pub, movements);
             } else {
                std::cerr << "MAIN Process: Failed to call the MOVEMENT HANDLER module | block " << i << std::endl;
@@ -100,15 +96,10 @@ int main(int argc, char **argv) {
          }
       } else {
          std::cerr << "MAIN Process: Failed to call the VISION module" << std::endl;
+         // Wait for 5 seconds before trying again if the vision module is not ready
          std::this_thread::sleep_for(std::chrono::seconds(5));
          continue;
       }
-      //////////////////////////////////
-      // when the vision module is ready, comment this block
-      // world_point = world_points.row(i);
-      // block_id = blocks_id[i];
-      // hasVisionFinished = true;
-      //////////////////////////////////
    }
 
    std::cout << "MAIN Process: ENDED" << std::endl;
@@ -116,6 +107,7 @@ int main(int argc, char **argv) {
 }
 
 void move(ros::Publisher &pub, Path path) {
+   // Iterating over the rows of the path
    for (int i = 0; i < path.rows(); i++) {
       move_row(pub, path.row(i));
    }
@@ -125,11 +117,11 @@ void move_row(ros::Publisher &pub, PathRow vals) {
    // Defining the frequency in Hz
    ros::Rate movement_rate(120);
 
-   /* Standard message that the robot receives */
+   // Standard message that the robot receives
    std_msgs::Float64MultiArray joint_statement;
    joint_statement.data.assign(vals.begin(), vals.end());
 
-   /* publish the command to the channel, the robot will intercept it */
+   // publish the command to the channel, the robot will intercept it
    pub.publish(joint_statement);
    // and then let's go to sleep
    movement_rate.sleep();

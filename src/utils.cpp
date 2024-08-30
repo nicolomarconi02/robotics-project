@@ -1,3 +1,8 @@
+/*!
+    @file utils.cpp
+    @brief Functions definition for the movement and the high planning level of the robot
+    @author Nicolo' Marconi
+*/
 #include "robotics_project/utils.h"
 
 #include <complex>
@@ -170,14 +175,18 @@ BlockId getBlockId(const std::string& blockId) {
    } else if (blockId == X2_Y2_Z2_FILLET_) {
       return BlockId_::X2_Y2_Z2_FILLET;
    }
+   // unknown block id
    return BlockId_::LENGTH;
 }
 Eigen::Vector3d getFinalPosition(const std::string& blockId) {
    BlockId block = getBlockId(blockId);
+   // check if the block id is valid
    if (block == BlockId_::LENGTH) {
       return Eigen::Vector3d::Zero();
    }
+   // size of the elevated part of the table
    Eigen::Vector2d planeSize{1.0, 0.15};
+   // size of the drop region, one fixed for each block
    Eigen::Vector2d dropRegionSize{planeSize(0) / (double)BlockId_::LENGTH, planeSize(1)};
    double xPos = dropRegionSize(0) * (double)block + dropRegionSize(0) / 2.0;
    double yPos = dropRegionSize(1) / 2.0;
@@ -214,11 +223,13 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
 
    delta = std::atan2(std::sin(delta), std::cos(delta));
    double finalAngle = jointConfiguration(0) + delta;
+   // check if the final angle is in the range [-pi, pi] in order to avoid actuators limits problems
    if (finalAngle > M_PI) {
       return MovementDirection_::COUNTERCLOCKWISE;
    } else if (finalAngle < -M_PI) {
       return MovementDirection_::CLOCKWISE;
    }
+   // set the movement direction based on the delta angle
    if (delta >= 0) {
       if (delta <= M_PI) {
          return MovementDirection_::CLOCKWISE;
@@ -239,6 +250,7 @@ MovementDirection getMovementDirection(const Eigen::Vector3d& initialPosition, c
 constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle() {
    Eigen::Matrix<double, N_SEGMENTS, 3> points;
    for (double k = 0.0; k < N_SEGMENTS; k += 1.0) {
+      // get N equally spaced points on a circle using complex numbers
       std::complex<double> zk = RADIUS_CIRCLE * std::exp(std::complex<double>(0.0, 2.0 * M_PI * (k / N_SEGMENTS)));
       Eigen::Vector3d point(zk.real(), zk.imag(), STD_HEIGHT);
       points.row(k) = point;
@@ -248,6 +260,8 @@ constexpr const Eigen::Matrix<double, N_SEGMENTS, 3> getNPointsOnCircle() {
 
 Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, const Eigen::Vector3d& finalPosition,
                                      const Eigen::Matrix<double, 8, 1>& jointConfiguration) {
+   // get the two intersections points between the circle and the line passing through the origin and the initial
+   // position
    Eigen::Vector3d p1(
        (initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
        (initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
@@ -256,18 +270,20 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
        (-initialPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
        (-initialPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(initialPosition(0), 2) + pow(initialPosition(1), 2))),
        STD_HEIGHT);
+   // get the closest point to the initial position
    Eigen::Vector3d initialPosOnCircle =
        (distanceBetweenPoints(initialPosition, p1) < distanceBetweenPoints(initialPosition, p2)) ? p1 : p2;
-
+   // get the two intersections points between the circle and the line passing through the origin and the final position
    Eigen::Vector3d p3((finalPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
                       (finalPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
                       STD_HEIGHT);
    Eigen::Vector3d p4((-finalPosition(0) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
                       (-finalPosition(1) * RADIUS_CIRCLE) / (sqrt(pow(finalPosition(0), 2) + pow(finalPosition(1), 2))),
                       STD_HEIGHT);
+   // get the closest point to the final position
    Eigen::Vector3d finalPosOnCircle =
        (distanceBetweenPoints(finalPosition, p3) < distanceBetweenPoints(finalPosition, p4)) ? p3 : p4;
-
+   // get the movement direction based on the initial and final positions
    MovementDirection direction = getMovementDirection(initialPosOnCircle, finalPosOnCircle, jointConfiguration);
    if (direction == MovementDirection_::NONE) {
       return Trajectory();
@@ -276,12 +292,14 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    // std::cout << "Final position on circle: " << finalPosOnCircle << std::endl;
    // std::cout << "Direction: " << direction << std::endl;
 
+   // get the N points on the circle
    auto pointsOnCircle = getNPointsOnCircle();
 
    double minDistanceInitial = 1000.0;
    double minDistanceFinal = 1000.0;
    int indexInitial = 0;
    int indexFinal = 0;
+   // iterate over the N points on the circle to get the index of the closest points to the initial and final positions
    for (int i = 0; i < N_SEGMENTS; i++) {
       double distanceInitial = distanceBetweenPoints(initialPosOnCircle, pointsOnCircle.row(i));
       double distanceFinal = distanceBetweenPoints(finalPosOnCircle, pointsOnCircle.row(i));
@@ -295,6 +313,7 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
       }
    }
    int increment = 0;
+   // check if the initial and final points are in the same direction of the movement
    if (direction == MovementDirection_::CLOCKWISE) {
       increment = 1;
       if (getMovementDirection(initialPosOnCircle, pointsOnCircle.row(indexInitial), jointConfiguration) ==
@@ -318,6 +337,7 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
    }
    Trajectory trajectory;
    insertTrajectory(trajectory, initialPosOnCircle);
+   // iterate over the points on the circle to set the trajectory
    for (int i = indexInitial; i != indexFinal; i = (i + increment) % N_SEGMENTS) {
       if (i < 0) {
          i = N_SEGMENTS - 1;
@@ -336,11 +356,10 @@ Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const 
    double toggleGripper = 0.0;
    double gripperRight = 0.0;
    double gripperLeft = 0.0;
+   // set the angle of the gripper based on the block id and the state
    switch (state) {
       case GripperState_::CLOSE:
          // ROS_INFO("CLOSING GRIPPER");
-         // jointConfigurationTmp(6) = CLOSE_GRIPPER_ANGLE_THIN;
-         // jointConfigurationTmp(7) = CLOSE_GRIPPER_ANGLE_THIN;
          if (blockId == X2_Y2_Z2_ || blockId == X2_Y2_Z2_FILLET_) {
             toggleGripper = CLOSE_GRIPPER_ANGLE_THICK;
          } else {
@@ -349,8 +368,6 @@ Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const 
          break;
       case GripperState_::OPEN:
          // ROS_INFO("OPENING GRIPPER");
-         // jointConfigurationTmp(6) = OPEN_GRIPPER_ANGLE;
-         // jointConfigurationTmp(7) = OPEN_GRIPPER_ANGLE;
          toggleGripper = OPEN_GRIPPER_ANGLE;
          break;
       default:
@@ -359,6 +376,7 @@ Path toggleGripper(const Eigen::Matrix<double, 8, 1>& jointConfiguration, const 
    }
 
    static int steps = 20;
+   // interpolate the gripper angle
    for (int i = 1; i <= steps; i++) {
       gripperRight = jointConfigurationTmp(6) + (((toggleGripper - jointConfigurationTmp(6)) * i) / steps);
       gripperLeft = jointConfigurationTmp(7) + (((toggleGripper - jointConfigurationTmp(7)) * i) / steps);
@@ -398,6 +416,7 @@ double calculateDeterminantJJT(const Eigen::Matrix<double, 6, 6>& jacobian) {
 }
 
 double calculateDampingFactor(double w, double wt, double lambda0) {
+   // check if the determinant is less than the threshold
    if (w < wt) {
       return lambda0 * std::pow(1.0 - (w / wt), 2);
    } else {
@@ -423,6 +442,7 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
    Eigen::Quaterniond quaternion_instantK;
    Eigen::Matrix<double, 6, 1> velocities_instantK;
 
+   // gains for the position and orientation
    Eigen::Matrix3d Kp = Eigen::Matrix3d::Identity() * 10;
    Eigen::Matrix3d Kq = Eigen::Matrix3d::Identity() * 1;
    jointState_instantK = jointConfiguration.head(6);
@@ -431,9 +451,10 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
    static const double tolerance = 0.005;
 
    for (double instantK = 0.0; instantK < maxTime; instantK += TIME_STEP) {
+      // compute direct kinematics for the current joint state
       auto [pe_instantK, Re_instantK, transformationMatrix_instantK] = directKinematics(jointState_instantK);
       quaternion_instantK = Eigen::Quaterniond{Re_instantK};
-
+      // compute the positional and angular velocities using lerp and slerp
       Eigen::Vector3d positionalVelocity_instantK =
           (lerp(initialPosition, finalPosition, instantK, maxTime) -
            lerp(initialPosition, finalPosition, instantK - TIME_STEP, maxTime)) /
@@ -444,31 +465,39 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
 
       jacobian_instantK = getJacobian(jointState_instantK);
+      // set the maximum damping factor
       static double lambda0 = 1.0e-8;
+      // set the threshold for the determinant
       static double wt = 0.24;
+      // compute the determinant of JJT
       double w = calculateDeterminantJJT(jacobian_instantK);
+      // compute the damping factor
       double lambda = calculateDampingFactor(w, wt, lambda0);
+      // compute the damped pseudo inverse of the jacobian
       pseudoInverseJacobian_instantK = calculateDampedPseudoInverse(jacobian_instantK, lambda);
+      // check for the singularities
       if (abs(jacobian_instantK.determinant()) < 1.0e-5) {
          ROS_WARN("NEAR SINGULARITY");
       }
-
+      // compute the position and orientation errors
       Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK, maxTime) - pe_instantK;
       Eigen::Quaterniond quaternionError_instantK =
           slerp(initialQuaternion, finalQuaternion, instantK, maxTime) * quaternion_instantK.conjugate();
-
+      // compute the desired velocities
       velocities_instantK << positionalVelocity_instantK + (Kp * positionError_instantK),
           angularVelocity_instantK + (Kq * quaternionError_instantK.vec());
-
+      // compute the qdot0
       auto qdot0 = computeQdot0(jointState_instantK);
-
+      // compute the joint state dot
       jointStateDot_instantK =
           pseudoInverseJacobian_instantK * velocities_instantK +
           (Eigen::Matrix<double, 6, 6>::Identity() - pseudoInverseJacobian_instantK * jacobian_instantK) * qdot0;
       jointState_instantK += jointStateDot_instantK * TIME_STEP;
       Eigen::Matrix<double, 8, 1> path_instantK;
       path_instantK << jointState_instantK, gripperState;
+      // insert the joint configuration in the path
       insertPath(path, path_instantK);
+      // check if the final position is reached with a tolerance
       if ((finalPosition - pe_instantK).norm() < tolerance) {
          ROS_INFO("REACHED %f", instantK);
          break;

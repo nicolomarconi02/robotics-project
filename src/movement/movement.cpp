@@ -1,4 +1,8 @@
-/* Header */
+/*!
+    @file movement.cpp
+    @brief Functions definition for the service movement_handler
+    @author Nicolo' Marconi
+*/
 #include "robotics_project/movement/movement.h"
 
 #include <fstream>
@@ -17,7 +21,7 @@ int main(int argc, char **argv) {
 
    ros::init(argc, argv, "robotics_project_movement_handler");
 
-   /* Define service server */
+   // Define service server
    ros::NodeHandle n;
    ros::ServiceServer service = n.advertiseService("movement_handler", movHandler);
    // and start it
@@ -27,18 +31,20 @@ int main(int argc, char **argv) {
    return 0;
 }
 
-/* Service function */
 bool movHandler(robotics_project::MovementHandler::Request &req, robotics_project::MovementHandler::Response &res) {
    std::cout << "MOVEMENT HANDLER Process: Service CALLED" << std::endl;
 
    Eigen::Vector3d brickPosition(req.pose.position.x, req.pose.position.y, req.pose.position.z);
    Eigen::Quaterniond rotationQuaternion(req.pose.orientation.w, req.pose.orientation.x, req.pose.orientation.y,
                                          req.pose.orientation.z);
+   // Convert the brick position from world to base coordinates
    brickPosition = worldToBaseCoordinates(brickPosition);
+   // Subtract the tool size from the z coordinate
    brickPosition -= Eigen::Vector3d{0.0, 0.0, TOOL_SIZE};
    std::string blockId = req.block_id;
+   // Compute the path of the robot's movement
    Path movements = getPath(brickPosition, rotationQuaternion, blockId);
-
+   // Fill the response of the service movement_handler
    res = getResponse(movements);
 
    return true;
@@ -47,7 +53,9 @@ bool movHandler(robotics_project::MovementHandler::Request &req, robotics_projec
 Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &brickOrientation,
              const std::string &blockId) {
    ROS_INFO("%s", blockId.c_str());
+   // Get the final position of the block on the elevated part of the table
    Eigen::Vector3d finalPosition = getFinalPosition(blockId);
+   // Check if the block id is valid
    if (finalPosition.norm() < 1e-3) {
       ROS_ERROR("UNKNOWN BLOCK ID");
       ROS_ERROR("STOPPING MOVEMENT");
@@ -81,7 +89,6 @@ Path getPath(const Eigen::Vector3d &brickPosition, const Eigen::Quaterniond &bri
    ROS_INFO("FINISH move to brick standard height");
    // OPEN GRIPPER
    insertPath(path, toggleGripper(path.row(path.rows() - 1), GripperState_::OPEN, blockId));
-   // insertPath(path, moveRobot(path.row(path.rows() - 1), brickPositionStdHeight, Re));
    // MOVEMENT FROM BRICK STANDARD HEIGHT POSITION TO BRICK POSITION
 
    // Compute radiant angle
@@ -170,23 +177,28 @@ robotics_project::MovementHandler::Response getResponse(Path movements) {
 }
 
 void runOptimization() {
+   // Open the file to write the results of the optimization
    std::ofstream file("optimization_results.txt", std::ios::app);
    if (!file.is_open()) {
       std::cerr << "Error opening file" << std::endl;
       return;
    }
+   // Homing position of the robot
    Eigen::Matrix<double, 8, 1> initialJointConfiguration = Eigen::Matrix<double, 8, 1>{
        -0.320096, -0.780249, -2.56081, -1.63051, -1.5705, 3.4911, -4.38614e-05, 7.69203e-06};
+   // World coordinates of the blocks
    Eigen::Matrix<double, 9, 3> world_points{{1.0, 0.8, 1.025},     {1.0, 0.15, 1.225},     {0.0, 0.15, 1.225},
                                             {0.0, 0.8, 1.025},     {-0.001, 0.055, 1.225}, {0.549, 0.089, 1.225},
                                             {0.218, 0.649, 1.070}, {0.636, 0.5, 1.009},    {0.326, 0.307, 1.070}};
    int n_blocks = world_points.rows();
+   // Orientation of the blocks
    Eigen::Matrix3d rotation_matrix{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
    Eigen::Quaterniond rotation_quaternion(rotation_matrix);
+   // Block ids
    std::vector<std::string> blocks_id{
        "X1-Y1-Z2", "X1-Y2-Z1",        "X1-Y2-Z2", "X1-Y2-Z2-CHAMFER", "X1-Y2-Z2-TWINFILLET",
        "X1-Y3-Z2", "X1-Y3-Z2-FILLET", "X1-Y4-Z1", "X1-Y4-Z2"};
-
+   // Data structure to store the results of the optimization
    struct movement_data {
       double lamda0;
       double wt;
@@ -195,15 +207,15 @@ void runOptimization() {
    };
 
    std::vector<movement_data> movements_data;
-
-   for (int i = 0; i < 4; i++) {
+   // Iterate over the blocks
+   for (int i = 0; i < n_blocks; i++) {
       std::cout << "i: " << i << std::endl;
       std::cout << "BLOCK ID: " << blocks_id[i] << std::endl;
       Eigen::Vector3d brickPosition = world_points.row(i);
       std::string blockId = blocks_id[i];
       brickPosition = worldToBaseCoordinates(brickPosition);
       Eigen::Vector3d finalPosition = getFinalPosition(blockId);
-      if (finalPosition == Eigen::Vector3d::Zero()) {
+      if (finalPosition.norm() < 1e-3) {
          ROS_ERROR("UNKNOWN BLOCK ID");
          ROS_ERROR("STOPPING MOVEMENT");
          continue;
@@ -216,12 +228,13 @@ void runOptimization() {
       Eigen::Vector3d finalPositionStdHeight(finalPosition(0), finalPosition(1), STD_HEIGHT);
       Eigen::Matrix3d finalRe{{-1.0, 0.0, 0.0}, {0.0, -1.0, 0.0}, {0.0, 0.0, 1.0}};
       Eigen::Quaterniond finalRotationQuaternion(finalRe);
-
+      // Starting values for the optimization
       double currWt = 0.001;
       double currLambda0 = 1e-8;
       Eigen::Vector3d minDelta(1000.0, 1000.0, 1000.0);
       double min = 1000.0;
       int currSingularities = 0;
+      // Iterate over the values of lambda0 and wt
       for (double lambda0 = 1e-8; lambda0 < 0.1e-4; lambda0 *= 10) {
          for (double wt = 0.01; wt < 1.0; wt += 0.01) {
             int singularities = 0;
@@ -274,7 +287,7 @@ void runOptimization() {
             // MOVEMENT FROM FINAL STANDARD HEIGHT POSITION TO FINAL POSITION
             path = moveRobotOptimization(path.row(path.rows() - 1), finalPosition, finalRotationQuaternion, lambda0, wt,
                                          singularities);
-
+            // update the minimum distance
             Eigen::Matrix<double, 6, 1> js = path.head(6);
             auto [pe_i, Re_i, transformationMatrix_i] = directKinematics(js);
             double tmp = (finalPosition - pe_i).norm();
@@ -292,9 +305,10 @@ void runOptimization() {
                                          lambda0, wt, singularities);
          }
       }
+      // Store the results of the optimization
       movements_data.push_back({currLambda0, currWt, minDelta.norm(), currSingularities});
    }
-
+   // Write the results of the optimization in the file
    for (auto data : movements_data) {
       std::cout << "lambda0: " << data.lamda0 << " wt: " << data.wt << " deltaPos: " << data.deltaPos
                 << " singularities: " << data.singularities << std::endl;

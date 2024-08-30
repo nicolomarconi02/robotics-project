@@ -1,3 +1,8 @@
+/*!
+    @file utils.h
+    @brief Functions declaration for the movement and the high planning level of the robot
+    @author Nicolo' Marconi
+*/
 #ifndef ROBOTICS_PROJECT_H
 #define ROBOTICS_PROJECT_H
 
