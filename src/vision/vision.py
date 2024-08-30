@@ -21,14 +21,11 @@ from cv_bridge import CvBridge
 import numpy as np
 import matplotlib.pyplot as plt
 from ctypes import *    # To convert float to uint32
-from itertools import combinations
-from functools import reduce
 
 import math
 import time
 import threading
 
-from robotics_project_vision import plot_points
 from robotics_project_vision import object_detection as vision
 
 from sensor_msgs.msg import Image, PointCloud2
@@ -143,7 +140,7 @@ class ZedBlock:
                 self.compute_yaw()
             else:
                 self.mid = (self.p1 + self.vertex)/2
-                self.mid[0] += 0.019
+                self.mid[0] += UNIT_HEIGHT
 
     def get_quadrants(self):
         """
@@ -493,7 +490,7 @@ class VisionManagerClass():
     def object_detection(self, imgName: str, image: Image):
 
         # convert received image (bgr8 format) to a cv2 image
-        image_cv2 = self.get_image(image)
+        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
         cv2.imwrite(f'camera-rolls/{imgName}.png', image_cv2)
 
         ###################### OBJECT DETECTION #######################
@@ -507,38 +504,6 @@ class VisionManagerClass():
 
         end_time = time.time()
         print(f"< OBJECT DETECTION PROCESS: ENDED after {end_time-start_time}")
-
-
-    def get_image(self, image: Image):
-        """ 
-        This function removes all unwanted factors from the image, such as the background, the table shape and the shadows 
-        """
-
-        image_cv2 = CvBridge().imgmsg_to_cv2(image, "bgr8")
-
-        # we have to cut above the line passing through the points
-        # (1200,410) and (1540,900)
-        # to exclude the blocks already positioned
-        for (py, row) in enumerate(image_cv2):
-            for (px,pixel) in enumerate(row):
-                if ( (px - 1200) / 340 - (py - 410) / 490 ) > 0:
-                    image_cv2[py][px] = (255, 255, 255)
-
-        hsv = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2HSV)
-
-        mask = cv2.inRange(hsv, (0, 0, 100), (255, 5, 255))
-
-        # Build mask of non black pixels.
-        nzmask = cv2.inRange(hsv, (0, 0, 5), (255, 255, 255))
-
-        # Erode the mask - all pixels around a black pixels should not be masked.
-        nzmask = cv2.erode(nzmask, np.ones((3,3)))
-
-        mask = mask & nzmask
-
-        image_cv2[np.where(mask)] = 255
-
-        return image_cv2
 
     def choose_good_objects(self):
         """
