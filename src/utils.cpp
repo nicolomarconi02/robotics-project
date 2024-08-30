@@ -7,12 +7,13 @@
 #include "sensor_msgs/JointState.h"
 #include "std_msgs/Float64MultiArray.h"
 
-Eigen::Vector3d lerp(const Eigen::Vector3d& start, const Eigen::Vector3d& end, double t) {
-   double t_norm = t / TOTAL_TIME;
+Eigen::Vector3d lerp(const Eigen::Vector3d& start, const Eigen::Vector3d& end, double t, const double maxTime) {
+   double t_norm = t / maxTime;
    return start + t_norm * (end - start);
 }
-Eigen::Quaterniond slerp(const Eigen::Quaterniond& start, const Eigen::Quaterniond& end, double t) {
-   double t_norm = t / TOTAL_TIME;
+Eigen::Quaterniond slerp(const Eigen::Quaterniond& start, const Eigen::Quaterniond& end, double t,
+                         const double maxTime) {
+   double t_norm = t / maxTime;
    return start.slerp(t_norm, end);
 }
 Eigen::Matrix4d generalTransformationMatrix(double theta, double alpha, double d, double a) {
@@ -324,7 +325,6 @@ Trajectory computeCircularTrajectory(const Eigen::Vector3d& initialPosition, con
       insertTrajectory(trajectory, pointsOnCircle.row(i));
    }
    insertTrajectory(trajectory, finalPosOnCircle);
-   insertTrajectory(trajectory, finalPosition);
 
    return trajectory;
 }
@@ -434,11 +434,13 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
       auto [pe_instantK, Re_instantK, transformationMatrix_instantK] = directKinematics(jointState_instantK);
       quaternion_instantK = Eigen::Quaterniond{Re_instantK};
 
-      Eigen::Vector3d positionalVelocity_instantK = (lerp(initialPosition, finalPosition, instantK) -
-                                                     lerp(initialPosition, finalPosition, instantK - TIME_STEP)) /
-                                                    TIME_STEP;
-      Eigen::Quaterniond quaternionVelocity_instantK = slerp(initialQuaternion, finalQuaternion, instantK + TIME_STEP) *
-                                                       slerp(initialQuaternion, finalQuaternion, instantK).conjugate();
+      Eigen::Vector3d positionalVelocity_instantK =
+          (lerp(initialPosition, finalPosition, instantK, maxTime) -
+           lerp(initialPosition, finalPosition, instantK - TIME_STEP, maxTime)) /
+          TIME_STEP;
+      Eigen::Quaterniond quaternionVelocity_instantK =
+          slerp(initialQuaternion, finalQuaternion, instantK + TIME_STEP, maxTime) *
+          slerp(initialQuaternion, finalQuaternion, instantK, maxTime).conjugate();
       Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
 
       jacobian_instantK = getJacobian(jointState_instantK);
@@ -451,9 +453,9 @@ Path differentialKinematicsQuaternion(const Eigen::Matrix<double, 8, 1>& jointCo
          ROS_WARN("NEAR SINGULARITY");
       }
 
-      Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK) - pe_instantK;
+      Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK, maxTime) - pe_instantK;
       Eigen::Quaterniond quaternionError_instantK =
-          slerp(initialQuaternion, finalQuaternion, instantK) * quaternion_instantK.conjugate();
+          slerp(initialQuaternion, finalQuaternion, instantK, maxTime) * quaternion_instantK.conjugate();
 
       velocities_instantK << positionalVelocity_instantK + (Kp * positionError_instantK),
           angularVelocity_instantK + (Kq * quaternionError_instantK.vec());
@@ -506,11 +508,13 @@ Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double,
       auto [pe_instantK, Re_instantK, transformationMatrix_instantK] = directKinematics(jointState_instantK);
       quaternion_instantK = Eigen::Quaterniond{Re_instantK};
 
-      Eigen::Vector3d positionalVelocity_instantK = (lerp(initialPosition, finalPosition, instantK) -
-                                                     lerp(initialPosition, finalPosition, instantK - TIME_STEP)) /
-                                                    TIME_STEP;
-      Eigen::Quaterniond quaternionVelocity_instantK = slerp(initialQuaternion, finalQuaternion, instantK + TIME_STEP) *
-                                                       slerp(initialQuaternion, finalQuaternion, instantK).conjugate();
+      Eigen::Vector3d positionalVelocity_instantK =
+          (lerp(initialPosition, finalPosition, instantK, maxTime) -
+           lerp(initialPosition, finalPosition, instantK - TIME_STEP, maxTime)) /
+          TIME_STEP;
+      Eigen::Quaterniond quaternionVelocity_instantK =
+          slerp(initialQuaternion, finalQuaternion, instantK + TIME_STEP, maxTime) *
+          slerp(initialQuaternion, finalQuaternion, instantK, maxTime).conjugate();
       Eigen::Vector3d angularVelocity_instantK = (quaternionVelocity_instantK.vec() * 2.0) / TIME_STEP;
 
       jacobian_instantK = getJacobian(jointState_instantK);
@@ -522,9 +526,9 @@ Eigen::Matrix<double, 1, 8> optimizeParamDiffKinQuat(const Eigen::Matrix<double,
          ROS_WARN("NEAR SINGULARITY wt: %f lambda0: %f", wt, lambda0);
       }
 
-      Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK) - pe_instantK;
+      Eigen::Vector3d positionError_instantK = lerp(initialPosition, finalPosition, instantK, maxTime) - pe_instantK;
       Eigen::Quaterniond quaternionError_instantK =
-          slerp(initialQuaternion, finalQuaternion, instantK) * quaternion_instantK.conjugate();
+          slerp(initialQuaternion, finalQuaternion, instantK, maxTime) * quaternion_instantK.conjugate();
 
       velocities_instantK << positionalVelocity_instantK + (Kp * positionError_instantK),
           angularVelocity_instantK + (Kq * quaternionError_instantK.vec());
