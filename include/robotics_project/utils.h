@@ -34,9 +34,9 @@
 //! @brief Size of the end effector tool
 #define TOOL_SIZE 0.13
 //! @brief Close gripper angle for thin blocks (X1-Y...)
-#define CLOSE_GRIPPER_ANGLE_THIN -0.4
+#define CLOSE_GRIPPER_ANGLE_THIN -0.45
 //! @brief Close gripper angle for thick blocks (X2-Y...)
-#define CLOSE_GRIPPER_ANGLE_THICK 0.2
+#define CLOSE_GRIPPER_ANGLE_THICK 0.275
 //! @brief Open gripper angle
 #define OPEN_GRIPPER_ANGLE M_PI_2
 
