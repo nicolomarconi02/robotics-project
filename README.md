@@ -1,5 +1,15 @@
 # Robotics Project
 
+The project consists of the implementation of a system to recognise the position of blocks placed on a table, and move them using an anthropomorphic arm manipulator.
+
+Here a video of our robot working:
+
+https://github.com/user-attachments/assets/abd76676-b3e1-43fc-a70d-b7380857d6b2
+
+If you are interested in how we developed the project, have a look at the [report](https://github.com/nicolomarconi02/robotics-project/blob/main/assignment/Robotics_Project.pdf).
+
+# How to install
+
 This package requires to be inside the same ROS workspace as the project of [Locosim](https://github.com/mfocchi/locosim). Once Locosim is installed and this repo has been cloned, you may have to change the 5th line in the Makefile so that the path to the workspace matches. By default, we set
 ```
 WORKSPACE_PATH=~/ros_ws
@@ -9,16 +19,11 @@ WORKSPACE_PATH=~/ros_ws
 
 
 ## ROS Nodes
-We have three ROS nodes: `client`, `movement_handler` and `vision`.
+We have three ROS nodes:
 
-### Client
-This node interacts with the **UR5** and the other modules. 
-
-### Movement Handler
-This node provides a service that computes the movements that the **UR5** should do.
-
-### Vision
-This node provides a service that detects the blocks' pose on the table and returns their informations to the client module
+* `client` : This node interacts with the **UR5** and the other modules
+* `movement_handler` : This node provides a service that computes the movements that the **UR5** should do
+* `vision` : This node provides a service that detects the blocks' pose on the table and returns their informations to the client module
 
 ## Building
 Before starting to build the project, you need to include the Eigen submodule in the git repo
