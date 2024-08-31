@@ -24,6 +24,11 @@ To build the project simply run the Makefile (do not worry about sourcing the pr
 make
 ```
 
+Run this command to install all the dependencies needed by the vision module
+```
+python3 -m pip install -r requirements.txt
+```
+
 ## Running
 The following steps are sequential and need to be executed in different terminals.
 
@@ -57,8 +62,13 @@ make run-client
 If every module is started correctly, the robot will begin to move when the vision module has computed the blocks' positions and the movement module has returned the path that the robot has to follow
 
 ## Documentation
-In order to generate doxygen documentation you have to execute
+In order to generate doxygen documentation you have to install doxygen
 ```
+make documentation
+```
+sudo apt install -y doxygen
+```
+Then run this command to generate the documentation of the project
 make documentation
 ```
 You will have to launch the html file in `/docs/html/index.html`
