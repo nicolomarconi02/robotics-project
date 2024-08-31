@@ -1,6 +1,12 @@
 # Robotics Project
 
-This package requires to be inside the same project of [Locosim](https://github.com/mfocchi/locosim).
+This package requires to be inside the same ROS workspace as the project of [Locosim](https://github.com/mfocchi/locosim). Once Locosim is installed and this repo has been cloned, you may have to change the 5th line in the Makefile so that the path to the workspace matches. By default, we set
+```
+WORKSPACE_PATH=~/ros_ws
+```
+
+> **Disclaimer:** The [Locosim](https://github.com/mfocchi/locosim) repository has been updated since we installed it. We developed the project based on this [version](https://github.com/mfocchi/locosim/commit/69563be995b5f980840afed223e1f13d7cf07cfa) (commit 1bb4e0702ee3a260c74d750cfad8f09de96a6087).
+
 
 ## ROS Nodes
 We have three ROS nodes: `client`, `movement_handler` and `vision`.
@@ -22,6 +28,11 @@ git submodule update --init --recursive
 To build the project simply run the Makefile (do not worry about sourcing the project since we already integrated this step inside the Makefile). 
 ```
 make
+```
+
+Run this command to install all the dependencies needed by the vision module
+```
+python3 -m pip install -r requirements.txt
 ```
 
 ## Running
@@ -47,18 +58,23 @@ When the robot has completed his homing procedure and the blocks are spawned on 
 ```
 make run-vision
 ```
-This starts the vision module on the current console
+This starts the vision module on the current console.
 
 ### Execute the Client module
 Execute
 ```
 make run-client
 ```
-If every module is started correctly, the robot will begin to move when the vision module has computed the blocks' positions and the movement module has returned the path that the robot has to follow
+If every module is started correctly, the robot will begin to move when the vision module has computed the blocks' positions and the movement module has returned the path that the robot has to follow.
 
 ## Documentation
-In order to generate doxygen documentation you have to execute
+To generate Doxygen documentation, you need to have Doxygen installed on your computer. If you haven’t installed it yet, you can do so with:
+```
+sudo apt install -y doxygen
+```
+
+Then run this command to generate the documentation of the project
 ```
 make documentation
 ```
-You will have to launch the html file in `/docs/html/index.html`
+You will have to launch the html file in `/docs/html/index.html` to explore the documentation of the project.
