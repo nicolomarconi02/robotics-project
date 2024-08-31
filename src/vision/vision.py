@@ -190,24 +190,73 @@ class ZedBlock:
                 self.mid = (self.p1 + self.vertex)/2
                 self.mid[0] += UNIT_HEIGHT
 
-    def get_quadrants(self):
+    def get_quadrants(self, origin = None, exclude_origin = True):
         """!
-        Determines the cluster points on the 4 quadrants centered on the vertex.
+        Determines the cluster points on the 4 quadrants centered on the origin.
 
-        @return Returns the cluster points on the 4 quadrants centered on the vertex.
+        @param origin: origin point of the plane's division, its default value is the block's vertex
+        @param exclude_origin: this boolean specifies if the origin may be accepted as a returned value or not 
+
+        @return Returns the cluster points on the 4 quadrants centered on the origin.
         """
-        origin = self.vertex[:]
+        if origin is None:
+            origin = self.vertex[:]
         points = self.cluster_points[:]
 
         # The origin gets removed from the pool, so that it doesn't get count on the quadrants
-        points = np.delete(points, np.where(points == origin)[0][0], axis=0)
+        if exclude_origin:
+            points = np.delete(points, np.where(points == origin)[0][0], axis=0)
+
+        quadrants = [[], [], [], []]
+
+        for p in points:
+            if p[0] <= origin[0] and p[1] <= origin[1]:
+                quadrants[0].append(p)
+            if p[0] >= origin[0] and p[1] <= origin[1]:
+                quadrants[1].append(p)
+            if p[0] >= origin[0] and p[1] >= origin[1]:
+                quadrants[2].append(p)
+            if p[0] <= origin[0] and p[1] >= origin[1]:
+                quadrants[3].append(p)
     
-        return [
-            [p for p in points if p[0] <= origin[0] and p[1] <= origin[1]], 
-            [p for p in points if p[0] >= origin[0] and p[1] <= origin[1]], 
-            [p for p in points if p[0] >= origin[0] and p[1] >= origin[1]], 
-            [p for p in points if p[0] <= origin[0] and p[1] >= origin[1]]
-            ]
+        return quadrants
+
+    def reduce_point_on_direction(self, point, quadrant, axis, extreme, exclude_origin=True):
+        """!
+        This function finds the furthest/closest point in a quadrant, starting from a given point, relative to an axis
+        
+        @param point: starting point of the research
+        @param quadrant: quadrant to analyze
+        @param axis: axis in which we move to search, either x (=0) or y (=1)
+        @param extreme: it specifies whether we're going to search for an argmin (=0) or an argmax (=1)
+        @param exclude_origin: this boolean specifies if the origin may be accepted as a returned value or not 
+        
+        @return The found point, or None.
+        """
+        quadrant = np.array(self.get_quadrants(point, exclude_origin)[quadrant])
+
+        # it may happen with exclude_origin = True
+        if len(quadrant) == 0:
+            return None
+
+        if extreme == 0:
+            return np.array(quadrant[quadrant[:,axis].argmin(),:])
+        return np.array(quadrant[quadrant[:,axis].argmax(),:])
+
+    def has_close_point(self, point, quadrant, axis, extreme, max_distance = 0.001):
+        """!
+        This function checks if there's a close point in the given direction of a point's quadrant
+        
+        @param point: starting point of the research
+        @param quadrant: quadrant to analyze
+        @param axis: axis in which we move to search, either x (=0) or y (=1)
+        @param extreme: it specifies whether we're going to search for an argmin (=0) or an argmax (=1)
+        @param max_distance: distance limit, on the axis, to be considered close
+        
+        @return The found point, or None.
+        """
+        closest_point = self.reduce_point_on_direction(point, quadrant, axis, extreme, False)
+        return closest_point is not None and abs(closest_point[axis] - point[axis]) <= max_distance
 
     def compute_vertex(self):
         """!
@@ -276,6 +325,73 @@ class ZedBlock:
             elif q4 > 0:
                 i = q4_points[:,0].argmin()
                 point_min = np.array(q4_points[i,:])
+
+        # additional system: we find the potential vertexes and  check which are the three visible
+        first = np.array(self.cluster_points[self.cluster_points[:,0].argmin(),:])
+        second = np.array(self.cluster_points[self.cluster_points[:,0].argmax(),:])
+        third = np.array(self.cluster_points[self.cluster_points[:,1].argmin(),:])
+        fourth = np.array(self.cluster_points[self.cluster_points[:,1].argmax(),:])
+
+        first_unique = not (np.array_equal(first, second) or np.array_equal(first, third) or np.array_equal(first, fourth))
+        second_unique = not (np.array_equal(second, first) or np.array_equal(second, third) or np.array_equal(second, fourth))
+        third_unique = not (np.array_equal(third, first) or np.array_equal(third, second) or np.array_equal(third, fourth))
+        fourth_unique = not (np.array_equal(fourth, first) or np.array_equal(fourth, second) or np.array_equal(fourth, third))
+
+        sensibility = 0.01
+        if first_unique and third_unique:
+
+            if self.has_close_point(first, 3, 1, 0):
+                self.vertex = first
+
+                third[1] += sensibility
+                point_min = self.reduce_point_on_direction(third, 1, 0, 1, False)
+                
+                fourth[1] -= sensibility
+                point_max = self.reduce_point_on_direction(fourth, 2, 0, 1, False)
+            else:
+                self.vertex = third
+
+                first[0] += sensibility
+                point_min = self.reduce_point_on_direction(first, 3, 1, 1, False)
+
+                second[0] -= sensibility
+                point_max = self.reduce_point_on_direction(second, 2, 1, 1, False)
+
+        elif first_unique and fourth_unique:
+            
+            if self.has_close_point(first, 1, 1, 1):
+                self.vertex = first
+
+                third[1] += sensibility
+                point_min = self.reduce_point_on_direction(third, 1, 0, 1, False)
+                
+                fourth[1] -= sensibility
+                point_max = self.reduce_point_on_direction(fourth, 2, 0, 1, False)
+            else:
+                self.vertex = fourth
+
+                first[0] += sensibility
+                point_min = self.reduce_point_on_direction(first, 0, 1, 0, False)
+
+                second[0] -= sensibility
+                point_max = self.reduce_point_on_direction(second, 1, 1, 0, False)
+
+        elif second_unique and fourth_unique:
+            self.vertex = fourth
+
+            first[0] += sensibility
+            point_min = self.reduce_point_on_direction(first, 0, 1, 0, False)
+
+            second[0] -= sensibility
+            point_max = self.reduce_point_on_direction(second, 1, 1, 0, False)
+        elif second_unique and third_unique:
+            self.vertex = third
+
+            first[0] += sensibility
+            point_min = self.reduce_point_on_direction(first, 3, 1, 1, False)
+
+            second[0] -= sensibility
+            point_max = self.reduce_point_on_direction(second, 2, 1, 1, False)
 
         # Get the length of the sides
         p1 = point_min   
@@ -391,6 +507,7 @@ class VisionManagerClass():
         self.manage_cloud = Manage_Point_Cloud(rotational_matrix=ROTATIONAL_MATRIX, zed_wrt_world=ZED_WRT_WORLD)
         
         ## Image from ZED Node
+        self.image_msg = ros.wait_for_message("/ur5/zed_node/left/image_rect_color", Image)
         self.image_msg = ros.wait_for_message("/ur5/zed_node/left/image_rect_color", Image)
 
         ## Point cloud from ZED Node
@@ -861,7 +978,7 @@ class VisionManagerClass():
         print(f'The blocks to be SENT are {n_blocks}, the following lines describe them')
 
         for block in self.blocks_to_take:
-            print(f'{block.yolo_prediction} centered in ({round(block.mid[0], 3)}, {round(block.mid[1], 3)}, {round(block.mid[2], 3)}), angle = {int(block.yaw * 180 / math.pi)}° = {round(block.yaw, 3)}')
+            print(f'{block.yolo_prediction} centered in ({round(block.mid[0], 3)}, {round(block.mid[1], 3)}, {round(block.mid[2], 3)})')
 
             pose = Pose()
 
@@ -884,12 +1001,21 @@ class VisionManagerClass():
         return GetBlocksResponse(poses, blocks_id, np.int8(n_blocks), finished)
 
 class RosManager():
+    """!
+    This class manages the interaction between the ROS clients and the vision module,
+    calling continously the lattest each time a new request is done.
+    """
 
     def __init__(self):
         # Service's definition and its handler's setting
         ros.init_node('vision')
 
     def start_service(self):
+        """!
+        Starts the Vision's ROS service. The service should be called from the client and it recalls the function "callback".
+
+        @return Nothing
+        """
         s = ros.Service('vision', GetBlocks, self.callback)
         print('VISION Process: Service STARTED')
 
@@ -897,6 +1023,11 @@ class RosManager():
         ros.spin()
 
     def callback(self, req):
+        """!
+        This function recalls the VisionManagerClass, so each time a client makes a request the vision module computes the table data from zero.
+
+        @return Nothing
+        """
         manager = VisionManagerClass()
         return manager.handle_get_blocks()
 
@@ -908,9 +1039,13 @@ def main():
 
     # check program's arguments
     DEBUG="debug" in sys.argv[1:]
+    test="test" in sys.argv[1:]
 
     manager = RosManager()
-    manager.start_service()
+    if test:
+        manager.callback(None)
+    else:
+        manager.start_service()
 
 
 if __name__ == '__main__':

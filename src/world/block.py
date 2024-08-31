@@ -1,3 +1,9 @@
+#! /usr/bin/env python
+
+"""!
+Class used during the spawning phase
+"""
+
 from geometry_msgs.msg import Pose
 import math
 from world import Models, Size, TABLE_HEIGHT
@@ -5,11 +11,19 @@ from dataclasses import dataclass
 
 @dataclass
 class Coord:
+    """!
+    Coordinates' class, used to express either the start of the block or it's center
+    """
     x: float
     y: float
     z: float
 
 class Block:
+    """!
+    This class computes the information needed to spawn the block, the pose,
+    and the methods used during the spawning phase.
+    """
+
     def __init__(self, model, x=0, y=0, z=0, angle=0, color="Grey", margin=0.0):
         self.color = color
         self.model = model
@@ -56,6 +70,10 @@ class Block:
 
     
     def get_vertexes(self):
+        """!
+        @return The vertexes of the block, they're used to check if a block exceeds the table's limits or not.
+        """
+        
         cx, cy, z = [self.center.x, self.center.y, self.center.z]
         w, l = [self.size.width, self.size.length]
         ca, sa = [math.cos(self.angle), math.sin(self.angle)]
@@ -91,6 +109,14 @@ class Block:
   
 
     def collides(self, other):
+        """!
+        This function checks the collision by calculating the
+        circular distance (point-diagonal, point-diagonal)
+
+        @param other: another block
+
+        @return collision truth value
+        """
 
         def getDiag(self):
             return math.sqrt(math.pow(self.size.width,2) + math.pow(self.size.length,2))
@@ -104,58 +130,6 @@ class Block:
         actual_distance = math.sqrt(math.pow((xc1 - xc2),2) + math.pow((yc1 - yc2),2))
 
         return actual_distance < min_distance
-
-
-    def collidesUnused(self, other):
-        x1 = self.x
-        y1 = self.y
-        w1 = self.size.width
-        h1 = self.size.length
-        A1 = self.angle
-
-        x2 = other.x
-        y2 = other.y
-        w2 = other.size.width
-        h2 = other.size.length
-        A2 = other.angle
-
-        w1H = w1 / 2
-        h1H = h1 / 2
-        w2H = w2 / 2
-        h2H = h2 / 2
-
-        x1c = x1 + w1H
-        y1c = y1 + h1H
-        x2c = x2 + w2H
-        y2c = y2 + h2H
-
-        cosA1 = math.cos(A1)
-        sinA1 = math.sin(A1)
-        cosA2 = math.cos(A2)
-        sinA2 = math.sin(A2)
-
-        x1r =  cosA2 * (x1c - x2c) + sinA2 * (y1c - y2c) + x2c - w1H
-        y1r = -sinA2 * (x1c - x2c) + cosA2 * (y1c - y2c) + y2c - h1H
-        x2r =  cosA1 * (x2c - x1c) + sinA1 * (y2c - y1c) + x1c - w2H
-        y2r = -sinA1 * (x2c - x1c) + cosA1 * (y2c - y1c) + y1c - h2H
-
-        cosA1A2 = abs(cosA1 * cosA2 + sinA1 * sinA2)
-        sinA1A2 = abs(sinA1 * cosA2 - cosA1 * sinA2)
-        cosA2A1 = abs(cosA2 * cosA1 + sinA2 * sinA1)
-        sinA2A1 = abs(sinA2 * cosA1 - cosA2 * sinA1)
-
-        bbh1 = w1 * sinA1A2 + h1 * cosA1A2
-        bbw1 = w1 * cosA1A2 + h1 * sinA1A2
-        bbx1 = x1r + w1H - bbw1 / 2
-        bby1 = y1r + h1H - bbh1 / 2
-
-        bbh2 = w2 * sinA2A1 + h2 * cosA2A1
-        bbw2 = w2 * cosA2A1 + h2 * sinA2A1
-        bbx2 = x2r + w2H - bbw2 / 2
-        bby2 = y2r + h2H - bbh2 / 2
-
-        return x1 < bbx2 + bbw2 and x1 + w1 > bbx2 and y1 < bby2 + bbh2 and y1 + h1 > bby2 and \
-                x2 < bbx1 + bbw1 and x2 + w2 > bbx1 and y2 < bby1 + bbh1 and y2 + h2 > bby1
     
     def __str__(self):
         return f'{self.model} at ({self.x}, {self.y}), angle = {math.degrees(self.angle)}° with size (width={self.size.width}, length={self.size.length}, height={self.size.height})'

@@ -1,5 +1,15 @@
+#! /usr/bin/env python
+
+"""!
+Executes the robot. Before doing so, it modifies its code in order
+for it to create a topic when the homing procedure is completed.
+"""
+
 def insertAfter(haystack, needle, newText):
-  """ Inserts 'newText' into 'haystack' right after 'needle'. """
+  """!
+  Inserts 'newText' into 'haystack' right after 'needle'.
+  """
+  
   i = haystack.find(needle)
   return haystack[:i + len(needle)] + newText + haystack[i + len(needle):]
 

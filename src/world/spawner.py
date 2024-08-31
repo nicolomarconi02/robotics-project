@@ -1,3 +1,12 @@
+#! /usr/bin/env python
+
+"""!
+Generates the blocks to be placed on the table
+
+If this program is run using plot as an argument, a plot will be shown in the screen.
+If test is added to the arguments, the class doesn't actually spawn the content. 
+"""
+
 import rospy as ros
 from gazebo_msgs.srv import SpawnModel
 from geometry_msgs.msg import Pose
@@ -13,17 +22,36 @@ from matplotlib.patches import Rectangle, Circle, Arrow
 from block import Block
 from world import Range, GenerationLimits, Cfr
 
+## Based on this flag, the routine spawns either 8 or 11 blocks
+SPAWN_ALL=False
+
 class Spawner():
-    # static attribute
+    """!
+    This class positions and places the blocks on the table.
+
+    It sends 8 random blocks to the gazebo/spawn_sdf_model service, 
+    the data's format is the same as the one required by the movement module.
+    """
+    ## Admissed block colors
     colors=['Red', 'Green', 'Yellow', 'Purple', 'Orange', 'Turquoise']
+
+    ## Max number of spawn attempts for a block
     MAX_SPAWNS = 100000
+
+    ## Margin between the blocks
     MARGIN=0.05
+
+    ## Table's internal margin from the blocks
     TABLE_PADDING=0.02
+
+    ## Admissible spawning limits on the table
     LIMITS=GenerationLimits(
         Range(0, 1),
         Range(0.25, 0.8),
         Range(0, 360)
         )
+    
+    ## Circular area that the arm can't reach, the blocks' centers can't spawn here
     ARM_AREA=Cfr(0.5, 0.5, 0.25)
 
     def __init__(self, robot_name="ur5", models_path="models", plot=False, test=False):
@@ -43,6 +71,16 @@ class Spawner():
         random.shuffle(self.colors)
 
     def spawn_content(self, pose : Pose, model, color="Grey"):
+        """!
+        Spawn a SDF model with a defined pose
+
+        @param pose: pose of the spawned model
+        @param model: id of the model to be spawned (ex. X1-Y2-Z2)
+        @param color: color of the model
+
+        @return Nothing, it calls Gazebo's spawning service
+        """
+
         sdf = self.get_model_sdf(model)
         sdf = sdf.replace('Gazebo/Grey', f'Gazebo/{color}')
 
@@ -50,14 +88,46 @@ class Spawner():
             self.spawn_model(model, sdf, self.robot_name, pose, "world")
 
     def get_model_sdf(self, model):
+        """!
+        Given a model, it returns its' sdf code
+
+        @param model: model's id
+
+        @return the model's sdf string, to be given to Gazebo's service
+        """
+
         sdf_file = open(f'{self.models_path}/{model}/model.sdf','r')
         return sdf_file.read()
 
     def spawn_block(self, block : Block):
+        """!
+        Given a block, it spawns its content by calling spawn_content
+
+        @param block: the block to be placed
+
+        @return Nothing
+        """
+
         self.spawn_content(block.pose, block.model, block.color)
 
     def spawn_blocks(self):
+        """!
+        This function reads the block models' IDs from the directory models, 
+        and spawns all of them by calling the function spawn_block.
+
+        If the plot arguments is specified, it plot the table with the
+        unrestricted areas, the blocks (red), their angle (green arrow), their
+        margins between each other (blue) and the margins from the table (orange)
+
+        @return Nothing
+        """
+
         models = os.listdir(self.models_path)
+
+        if not SPAWN_ALL:
+            random.shuffle(models)
+            models = models[:8]
+
         final_blocks = []
         margins = []
         table_margins = []
@@ -182,6 +252,11 @@ class Spawner():
 
 
 def main():
+    """!
+    Executes the spawner on all the blocks, if plot is specified,
+    all the data is shown.
+    """
+
     print('SPAWNER PROCESS: STARTED')
 
     # check plot in program's arguments

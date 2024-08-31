@@ -66,8 +66,7 @@ int main(int argc, char **argv) {
             float angle = yaw * 180 / M_PI;
 
             std::cout << "Block " << i + 1 << ": " << block_id << " in (" << std::setprecision(3) << world_point[0]
-                      << ", " << world_point[1] << ", " << world_point[2] << "), angle = " << (int)angle
-                      << "° = " << yaw << " rad" << std::endl;
+                      << ", " << world_point[1] << ", " << world_point[2] << ")" << std::endl;
 
             // Block transmission to movement module
             srv.request.pose.position.x = world_point[0];

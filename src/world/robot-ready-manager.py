@@ -1,9 +1,20 @@
 #! /usr/bin/env python
+
+"""!
+This routine is called with the robot, it checks whether
+the lattest completed its homing procedure or not.
+"""
+
 import rospy as ros
 from rospy import Rate
 import os
 
 class RobotReadyManager():
+    """!
+    Class that instantiates the ros communication and waits for the /ur5/topic to be created. 
+    It checks with a frequency of 0.5Hz, once every two seconds.
+    When the robot is detected to be ready, this routine spawns the blocks. 
+    """
 
     def __init__(self):
         ros.init_node('robot_ready_manager')

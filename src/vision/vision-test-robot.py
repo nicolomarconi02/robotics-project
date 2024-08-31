@@ -1,4 +1,11 @@
 #! /usr/bin/env python
+
+"""!
+Emulates the vision module, it returns the data generated during the spawning phase.
+This module is used to test the robot without having to check whether the vision's
+response is right or not.
+"""
+
 import rospy as ros
 
 import numpy as np
@@ -17,6 +24,10 @@ sys.path.append("src/world")
 from world import Models, TABLE_HEIGHT
 
 class VisionManagerClass():
+    """!
+    Class to emulate the vision process.
+    It accesses the saved coordinates during the blocks' spawning phase and returns it. 
+    """
 
     def __init__(self, robot_name="ur5"):
         f = open('spawned.pickle', 'rb')
@@ -24,6 +35,9 @@ class VisionManagerClass():
         f.close()
 
     def start_service(self):
+        """!
+        Start the ROS Vision node and its emulated service
+        """
         # Service's definition and its handler's setting
         ros.init_node('vision')
         s = ros.Service('vision', GetBlocks, self.handle_get_blocks)
@@ -33,12 +47,10 @@ class VisionManagerClass():
         ros.spin()
 
     def handle_get_blocks(self, req):
-        """
+        """!
         This function gets called in order to reply to the service's calls coming from the clients.
-        Arguments:
-            Nothing
-        Returns:
-            Nothing
+
+        @return blocks: GetBlocksResponse
         """
 
         print('VISION PROCESS: handle_obtain_blocks CALLED')
@@ -75,6 +87,9 @@ class VisionManagerClass():
 
 
 def main():
+    """!
+    Starts a ROS Node and keeps it running.
+    """
     # Starting the ROS Node and keep it running
     manager = VisionManagerClass()
     manager.start_service()
