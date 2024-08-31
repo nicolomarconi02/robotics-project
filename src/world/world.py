@@ -85,6 +85,9 @@ class Model:
             height = self.size.height/2 
         )
 
+        if self.factor.width == 2 and self.factor.length == 2 and self.factor.height == 2:
+            self.center += 0.01
+
     def __str__(self):
         return f'{self.id} with size (width={self.size.width}, length={self.size.length}, height={self.size.height})'
 
